@@ -16,7 +16,40 @@ DATA = Path(os.environ.get("SPOT_DATA_DIR", ROOT / "data"))
 MARKET_TZ = "Europe/Brussels"
 COLORSCALE = "RdYlGn_r"  # green = cheap, red = expensive
 
+# Power-market products as blocks of delivery hours (market time, hour 0 = 00:00-01:00).
+# (first hour, last hour + 1). Edit here to change the definitions everywhere.
+PRODUCTS = {
+    "Base": [(0, 24)],
+    "Peak": [(8, 20)],  # 08:00-20:00, the standard peak block
+    "Off-peak 1": [(0, 8)],  # night: 00:00-08:00
+    "Off-peak 2": [(20, 24)],  # late evening: 20:00-24:00
+    "Off-peak": [(0, 8), (20, 24)],  # off-peak 1 + 2 together
+    "Morning shoulder": [(6, 9)],  # 06:00-09:00
+    "Evening shoulder": [(17, 20)],  # 17:00-20:00
+}
+PRODUCT_HELP = ("**Base** = all 24 hours (the daily average) · **Peak** = 08:00-20:00 · "
+                "**Off-peak 1** = 00:00-08:00 · **Off-peak 2** = 20:00-24:00 · **Off-peak** = both off-peak blocks · "
+                "**Morning shoulder** = 06:00-09:00 · **Evening shoulder** = 17:00-20:00. "
+                "Market time (CET/CEST); simple averages of the hourly prices. "
+                "The peak product is formally a weekday product - weekend values use the same hours.")
+EUR_PRICE_CAP = 10_000  # EUR/MWh: imbalance prices beyond this are treated as data errors
+
+
+def product_means(df: pd.DataFrame, col: str = "price_eur_mwh") -> pd.DataFrame:
+    """zone x product table of average `col` over each block of hours (df needs zone + hour columns)."""
+    out = {}
+    for name, ranges in PRODUCTS.items():
+        mask = np.zeros(len(df), dtype=bool)
+        for a, b in ranges:
+            mask |= ((df["hour"] >= a) & (df["hour"] < b)).to_numpy()
+        out[name] = df[mask].groupby("zone")[col].mean()
+    return pd.DataFrame(out)
+
 st.set_page_config(page_title="European spot prices", page_icon=":zap:", layout="wide")
+
+MAP_PROJECTION = "equirectangular"  # stretches Europe to fill the page width; "natural earth" is less distorted
+MAP_LON, MAP_LAT = [-10.5, 31.5], [35.5, 71.5]  # zoom: just the zones, no Russia / Africa / Turkey
+MAP_HEIGHT = 900
 
 
 def label(code: str) -> str:
@@ -33,6 +66,7 @@ def load_prices(mtime: float) -> pd.DataFrame:  # mtime busts the cache when the
     df = pd.read_csv(DATA / "prices.csv", parse_dates=["time"])
     df["time"] = pd.to_datetime(df["time"], utc=True).dt.tz_convert(MARKET_TZ)
     df["date"] = df["time"].dt.date
+    df["hour"] = df["time"].dt.hour
     df["slot"] = df["time"].dt.strftime("%H:00")
     # on the autumn clock change the 02:00 hour occurs twice; keep the slots distinct
     df.loc[df.duplicated(["zone", "date", "slot"]), "slot"] += " (2)"
@@ -46,23 +80,45 @@ def load_geo() -> dict:
 
 @st.cache_data(show_spinner=False)
 def load_imbalance(mtime: float, spot_mtime: float):
-    """Hourly imbalance data joined with the spot price of the same zone and hour."""
+    """Hourly imbalance data joined with spot. Returns (dataframe, currency per zone).
+
+    Cleaning done here:
+    - zones whose "short" price is always ~0 publish a single price in the "long" column -> use it for both
+    - EUR zones: prices beyond +-EUR_PRICE_CAP are data errors (e.g. HU) -> dropped
+    - zones with no currency tag get EUR if their prices sit at the same level as spot
+    price_sys = the price that applies in the direction the system was out of balance:
+    short price when the system was short (deficit), long price when it was long (surplus).
+    """
     df = pd.read_csv(DATA / "imbalance.csv", parse_dates=["time"])
     df["time"] = pd.to_datetime(df["time"], utc=True)
     spot = pd.read_csv(DATA / "prices.csv", parse_dates=["time"])
     spot["time"] = pd.to_datetime(spot["time"], utc=True)
     df = df.merge(spot.rename(columns={"price_eur_mwh": "spot"}), on=["zone", "time"], how="left")
+
+    p = DATA / "imbalance_currency.json"
+    cur = json.loads(p.read_text()) if p.exists() else {}
+    for z, g in df.groupby("zone"):
+        if cur.get(z) in (None, "?"):
+            ratio = (g["price_long"] / g["spot"]).replace([np.inf, -np.inf], np.nan).median()
+            cur[z] = "EUR" if pd.notna(ratio) and 0.3 < ratio < 3 else "?"
+
+    short_unused = (df["price_short"].abs() < 0.01).groupby(df["zone"]).transform("mean") > 0.9
+    df.loc[short_unused, "price_short"] = df.loc[short_unused, "price_long"]
+    is_eur = df["zone"].map(lambda z: cur.get(z) == "EUR")
+    for c in ("price_long", "price_short"):
+        df.loc[is_eur & (df[c].abs() > EUR_PRICE_CAP), c] = np.nan
+
     df["price_avg"] = df[["price_long", "price_short"]].mean(axis=1)
+    v = df["volume_mwh"]
+    df["price_sys"] = np.where(v < 0, df["price_short"], np.where(v > 0, df["price_long"], df["price_avg"]))
+    df["price_sys"] = df["price_sys"].fillna(df["price_avg"])
+    df["premium"] = np.where(is_eur, df["price_sys"] - df["spot"], np.nan)
+    df.loc[~is_eur, "spot"] = np.nan  # spot is in EUR - only meaningful next to EUR imbalance prices
+
     df["time"] = df["time"].dt.tz_convert(MARKET_TZ)
     df["date"] = df["time"].dt.date
     df["hour"] = df["time"].dt.hour
-    return df.sort_values(["zone", "time"])
-
-
-@st.cache_data(show_spinner=False)
-def load_currency() -> dict:
-    p = DATA / "imbalance_currency.json"
-    return json.loads(p.read_text()) if p.exists() else {}
+    return df.sort_values(["zone", "time"]), cur
 
 
 csv_path = DATA / "prices.csv"
@@ -83,7 +139,8 @@ with st.sidebar:
                        format_func=lambda d: d.strftime("%a %d %b %Y"))
     day_df = prices[prices["date"] == day]
     slots = list(dict.fromkeys(day_df.sort_values("time")["slot"]))
-    metric = st.radio("Map shows", ["Daily average", "Single hour"], horizontal=True)
+    metric = st.selectbox("Map shows", list(PRODUCTS) + ["Single hour"],
+                          help="Base = daily average. Peak, off-peak and shoulder blocks are defined below the map.")
     hour = None
     if metric == "Single hour":
         hour = st.select_slider("Hour (market time, CET/CEST)", options=slots, value=slots[min(12, len(slots) - 1)])
@@ -99,9 +156,10 @@ st.caption("Day-ahead spot in EUR/MWh (hourly means) and imbalance data · times
 p_lo, p_hi = np.nanpercentile(day_df["price_eur_mwh"], [2, 98])
 zmin, zmax = float(min(p_lo, 0)), float(max(p_hi, 1))
 
-if metric == "Daily average":
-    value = day_df.groupby("zone")["price_eur_mwh"].mean()
-    map_title = f"Daily average - {day:%a %d %b %Y}"
+day_stats = product_means(day_df)  # zone x product (Base, Peak, Off-peak 1, ...)
+if metric != "Single hour":
+    value = day_stats[metric]
+    map_title = f"{metric} - {day:%a %d %b %Y}"
 else:
     value = day_df[day_df["slot"] == hour].set_index("zone")["price_eur_mwh"]
     map_title = f"Price at {hour} - {day:%a %d %b %Y}"
@@ -146,7 +204,12 @@ with tab_map:
     selected = set(st.session_state["zones_sel"])
     vals = [value.get(z, np.nan) for z in geo_ids]
 
+    # grey underlay so zones without data stay visible; the surroundings (Russia, Africa, ...) are not drawn
     fig = go.Figure(go.Choropleth(
+        geojson=geo, locations=geo_ids, z=[0] * len(geo_ids), showscale=False, hoverinfo="skip",
+        colorscale=[[0, "#cfd3d8"], [1, "#cfd3d8"]], marker_line_color="white", marker_line_width=0.7,
+    ))
+    fig.add_trace(go.Choropleth(
         geojson=geo, locations=geo_ids, z=vals,
         customdata=[[ZONE_NAME[z], ZONE_REGION[z]] for z in geo_ids],
         colorscale=COLORSCALE, zmin=zmin, zmax=zmax,
@@ -164,17 +227,15 @@ with tab_map:
             mode="text", textfont=dict(size=12, color="#111111"), hoverinfo="skip", showlegend=False,
         ))
     fig.update_geos(
-        scope="europe", projection_type="conic conformal", fitbounds="locations",
-        showcountries=True, countrycolor="#9a9a9a", showland=True, landcolor="#dcdcdc",
-        showocean=True, oceancolor="rgba(150,180,210,0.25)", showlakes=False,
-        showframe=False, bgcolor="rgba(0,0,0,0)",
+        scope="europe", projection_type=MAP_PROJECTION, visible=False, bgcolor="rgba(0,0,0,0)",
+        lonaxis_range=MAP_LON, lataxis_range=MAP_LAT,
     )
-    fig.update_layout(height=900, margin=dict(l=0, r=0, t=40, b=0), title=dict(text=map_title, x=0.01),
+    fig.update_layout(height=MAP_HEIGHT, margin=dict(l=0, r=0, t=40, b=0), title=dict(text=map_title, x=0.01),
                       clickmode="event+select", dragmode="pan")
     st.plotly_chart(fig, key=f"map_{st.session_state['map_ver']}", on_select=on_map_select,
                     selection_mode="points", config={"displayModeBar": False, "scrollZoom": False})
     st.caption("Click a zone to add it to the selection below, click it again to remove it. "
-               "Grey = no spot market in the dataset. Sub-country zone borders (SE, NO, DK, IT) follow "
+               "Light grey = no spot price for that zone and day. Sub-country zone borders (SE, NO, DK, IT) follow "
                "county/region lines, so they are approximate.")
 
     # ---- data for the selected zones, underneath the map
@@ -201,13 +262,11 @@ with tab_map:
         if missing:
             st.warning(f"No prices for {', '.join(missing)} on {day:%d %b}.")
         if not table.empty:
-            stats = pd.DataFrame({
-                "Name": [ZONE_NAME[z] for z in table.columns],
-                "Average": table.mean(), "Min": table.min(), "Max": table.max(),
-                "Cheapest hour": table.idxmin(), "Priciest hour": table.idxmax(),
-            }).rename_axis("Zone")
-            st.dataframe(stats, column_config={
-                c: st.column_config.NumberColumn(format="%.1f") for c in ["Average", "Min", "Max"]})
+            stats = day_stats.reindex(list(table.columns))
+            stats.insert(0, "Name", [ZONE_NAME[z] for z in stats.index])
+            stats.index.name = "Zone"
+            st.dataframe(stats, column_config={c: st.column_config.NumberColumn(format="%.1f") for c in PRODUCTS})
+            st.caption(PRODUCT_HELP)
 
             col_t, col_c = st.columns([2, 3], gap="large")
             with col_t:
@@ -235,12 +294,18 @@ with tab_matrix:
         wide = day_df.pivot(index="zone", columns="slot", values="price_eur_mwh").reindex(columns=slots)
         ylabels = [f"{i + 1} ({s})" for i, s in enumerate(slots)]  # hour 1..24 downwards
 
-        summary = pd.DataFrame([
-            {"Region": r, "Zones": len(c), "Average": wide.reindex(c).stack().mean(),
-             "Min": wide.reindex(c).min().min(), "Max": wide.reindex(c).max().max()}
-            for r, c in codes_by_region.items()]).set_index("Region")
-        st.dataframe(summary, column_config={c: st.column_config.NumberColumn(format="%.1f")
-                                             for c in ["Average", "Min", "Max"]})
+        zstats = day_stats.reindex([z for r in regions for z in codes_by_region[r]])
+        zstats.insert(0, "Region", [ZONE_REGION[z] for z in zstats.index])
+        zstats.insert(1, "Name", [ZONE_NAME[z] for z in zstats.index])
+        zstats.index.name = "Zone"
+        summary = zstats.drop(columns="Name").groupby("Region", sort=False).mean()
+        summary.insert(0, "Zones", zstats.groupby("Region", sort=False).size())
+        pcfg = {c: st.column_config.NumberColumn(format="%.1f") for c in PRODUCTS}
+        st.markdown("**By region** (simple average of the zones' values)")
+        st.dataframe(summary, column_config=pcfg)
+        with st.expander("Statistics by zone", expanded=False):
+            st.dataframe(zstats, column_config=pcfg, height=min(38 + 35 * len(zstats), 700))
+            st.caption(PRODUCT_HELP)
 
         fig = make_subplots(rows=1, cols=len(regions), shared_yaxes=True, horizontal_spacing=0.006,
                             column_widths=[len(codes_by_region[r]) for r in regions])
@@ -270,15 +335,31 @@ with tab_matrix:
             raw.columns = pd.MultiIndex.from_tuples([(ZONE_REGION[z], z) for z in raw.columns])
             st.dataframe(raw.round(1), height=min(38 + 35 * len(raw), 920))
 
+
 # ---------------------------------------------------------------- imbalance tab
 IMB_METRICS = {
-    "Imbalance price - average of long & short": "price_avg",
-    "Imbalance price - short (deficit position)": "price_short",
-    "Imbalance price - long (surplus position)": "price_long",
+    "Imbalance price": "price_sys",
+    "Premium: imbalance price minus spot": "premium",
     "Imbalance volume (MWh)": "volume_mwh",
-    "Imbalance price minus spot price": "spread",
+    "Short price (paid when in deficit)": "price_short",
+    "Long price (paid when in surplus)": "price_long",
 }
-PRICE_COLS = {"price_avg", "price_short", "price_long", "spread"}
+IMB_HELP = """
+**Imbalance** is what is left over after the day-ahead market: the gap between what balance-responsible parties
+scheduled and what they actually produced or used. The grid operator settles that gap at an *imbalance price*.
+
+- **Imbalance price** (default) - the price that applied in the direction the system was actually out of balance:
+  the *short* price when the system had a **deficit**, the *long* price when it had a **surplus**. In single-price
+  countries there is only one price, so short = long. This is the number to compare with spot.
+- **Premium** - imbalance price minus the day-ahead spot price of the same hour. Positive (red) = settling imbalance
+  was more expensive than buying in the day-ahead market. Only computed for zones quoting EUR.
+- **Volume** - net imbalance of the whole zone in MWh. Positive (blue) = surplus, negative (red) = deficit.
+- **Short / long price** - the two raw prices for parties that are short (deficit) or long (surplus). They only differ
+  in dual-price countries (e.g. FR, NL, ES, PT).
+
+Hourly values: prices are averages of the published 15-minute/hourly prices, volumes are sums. Prices are in each
+country's own currency (shown in brackets). EUR prices beyond +-10,000 EUR/MWh are treated as data errors and dropped.
+"""
 
 
 def color_args(col: str, series: pd.Series) -> dict:
@@ -286,10 +367,27 @@ def color_args(col: str, series: pd.Series) -> dict:
     if v.empty:
         return dict(colorscale=COLORSCALE)
     lo, hi = np.nanpercentile(v, [2, 98])
-    if col in ("volume_mwh", "spread"):
+    if col in ("volume_mwh", "premium"):
         m = float(max(abs(lo), abs(hi))) or 1.0
+        # volume: red = deficit, blue = surplus; premium: red = imbalance above spot
         return dict(colorscale="RdBu" if col == "volume_mwh" else "RdBu_r", zmin=-m, zmax=m, zmid=0)
     return dict(colorscale=COLORSCALE, zmin=float(lo), zmax=float(hi))
+
+
+def spot_vs_imbalance(x, spot, imbp, prem, height=470):
+    f = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.62, 0.38], vertical_spacing=0.05)
+    f.add_trace(go.Scatter(x=x, y=spot, name="Spot (day-ahead)", mode="lines",
+                           line=dict(color="#2b6cb0", width=1.6)), row=1, col=1)
+    f.add_trace(go.Scatter(x=x, y=imbp, name="Imbalance price", mode="lines",
+                           line=dict(color="#d9480f", width=1.6)), row=1, col=1)
+    f.add_trace(go.Bar(x=x, y=prem, name="Premium", showlegend=False,
+                       marker_color=np.where(np.nan_to_num(np.asarray(prem, dtype=float)) >= 0, "#d9480f", "#2b6cb0")),
+                row=2, col=1)
+    f.update_yaxes(title_text="EUR/MWh", row=1, col=1)
+    f.update_yaxes(title_text="Premium", row=2, col=1)
+    f.update_layout(height=height, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified",
+                    legend=dict(orientation="h", y=1.1))
+    return f
 
 
 with tab_imb:
@@ -298,145 +396,134 @@ with tab_imb:
         st.info("No imbalance data yet. It is fetched by scripts/fetch_imbalance.py "
                 "(the scheduled workflow runs it together with the spot prices).")
     else:
-        imb = load_imbalance(imb_path.stat().st_mtime, csv_path.stat().st_mtime)
-        cur = load_currency()
+        imb, cur = load_imbalance(imb_path.stat().st_mtime, csv_path.stat().st_mtime)
         avail = [z for z in ZONE_CODES if z in set(imb["zone"])]
 
         def zlabel(z):
             return f"{z} - {ZONE_NAME[z]} ({cur.get(z, '?')})"
 
-        # imbalance minus spot only makes sense where both are in EUR
-        imb.loc[imb["zone"].map(lambda z: cur.get(z) != "EUR"), "spot"] = np.nan
-        imb["spread"] = imb["price_avg"] - imb["spot"]
-
-        st.caption("Imbalance = the difference between what balance-responsible parties scheduled and what they "
-                   "actually used or produced. **Long / short price**: what a surplus / deficit position is settled "
-                   "at (single-price systems have one price, shown for both). **Volume**: net system imbalance, "
-                   "positive = surplus, negative = deficit. Prices are in each country's own currency "
-                   "(shown in brackets); imbalance-minus-spot is only computed for EUR zones. "
-                   "Hourly values: prices are means, volumes are sums.")
-
-        c1, c2, c3 = st.columns([3, 2, 1])
-        default_zones = [z for z in ["DE_LU", "NL", "DK_1", "BE", "FR"] if z in avail][:2] or avail[:1]
-        st.session_state.setdefault("imb_zones", default_zones)
+        c1, c2, c3 = st.columns([2, 2, 1])
+        default_zone = next((z for z in ["NL", "FR", "BE", "DK_1", "SE_3"] if z in avail), avail[0])
         with c1:
-            zones_i = st.multiselect("Zones", avail, key="imb_zones", format_func=zlabel)
+            zone = st.selectbox("Zone", avail, index=avail.index(default_zone), format_func=zlabel)
         with c2:
             m_name = st.selectbox("Metric", list(IMB_METRICS))
         with c3:
             days = st.select_slider("Past days", [7, 14, 21, 30], value=30)
-        col = IMB_METRICS[m_name]
+        with st.expander("How to read this"):
+            st.markdown(IMB_HELP)
 
+        col = IMB_METRICS[m_name]
+        is_eur = cur.get(zone) == "EUR"
         last = imb["date"].max()
         win = imb[imb["date"] > last - pd.Timedelta(days=days)]
-        st.caption(f"Data from {win['date'].min():%d %b} to {last:%d %b %Y} · "
+        zd = win[win["zone"] == zone]
+        unit = "MWh" if col == "volume_mwh" else f"{cur.get(zone, '?')}/MWh"
+        st.caption(f"{zlabel(zone)} · {win['date'].min():%d %b} - {last:%d %b %Y} (market time) · "
                    f"{len(avail)} zones publish imbalance data.")
 
-        def unit_of(zs):
-            if col == "volume_mwh":
-                return "MWh"
-            cs = {cur.get(z, "?") for z in zs}
-            return f"{cs.pop()}/MWh" if len(cs) == 1 else "local currency/MWh"
-
-        # ---- A: all zones x days
-        st.subheader("All zones, day by day")
-        hsel = st.selectbox("Hour of day", ["All hours (daily average)"] + [hour_label(h) for h in range(24)])
-        sub = win if hsel.startswith("All") else win[win["hour"] == int(hsel.split(" ")[0]) - 1]
-        piv = sub.pivot_table(index="zone", columns="date", values=col, aggfunc="mean")
-        piv = piv.reindex([z for z in ZONE_CODES if z in piv.index])
-        if piv.empty or piv.notna().sum().sum() == 0:
-            st.info("No data for this metric.")
+        # ---- hour x day heatmap (newest day first)
+        st.subheader(f"{zone}: {m_name.split(':')[0].lower()} by hour and day")
+        if col == "premium" and not is_eur:
+            st.info(f"{zone} quotes imbalance prices in {cur.get(zone, 'an unknown currency')}, so there is no "
+                    "premium against the EUR spot price. Pick another metric.")
+        elif zd[col].notna().sum() == 0:
+            st.info(f"{zone} has no {m_name.lower()} data in this period.")
         else:
-            if col in PRICE_COLS and col != "spread" and len({cur.get(z) for z in piv.index}) > 1:
-                st.warning("Zones are in different currencies - compare colours within a currency only "
-                           "(EUR zones are the majority).")
+            hp = zd.pivot_table(index="hour", columns="date", values=col, aggfunc="mean").reindex(range(24))
+            newest_first = sorted(hp.columns, reverse=True)
+            hp = hp[newest_first]
             hm = go.Figure(go.Heatmap(
-                z=piv.to_numpy(), x=[d.strftime("%d %b") for d in piv.columns], y=list(piv.index),
-                text=[[ZONE_NAME[z]] * piv.shape[1] for z in piv.index], xgap=1, ygap=1,
-                texttemplate="%{z:.0f}", textfont=dict(size=9),
-                hovertemplate="<b>%{y}</b> %{text}<br>%{x}: %{z:.2f}<extra></extra>",
-                colorbar=dict(title=unit_of(piv.index), thickness=14), **color_args(col, sub[col]),
+                z=hp.to_numpy(), x=[d.strftime("%a %d %b") for d in newest_first], y=[hour_label(h) for h in range(24)],
+                xgap=1, ygap=1, texttemplate="%{z:.0f}", textfont=dict(size=9),
+                colorbar=dict(title=unit, thickness=14),
+                hovertemplate="%{x}, hour %{y}: %{z:.2f}<extra></extra>", **color_args(col, zd[col]),
             ))
             hm.update_yaxes(autorange="reversed", type="category")
-            hm.update_xaxes(side="top", type="category")
-            hm.update_layout(height=140 + 24 * len(piv), margin=dict(l=10, r=10, t=10, b=10))
-            st.plotly_chart(hm, key="imb_matrix")
+            hm.update_xaxes(type="category", side="top", tickangle=-90)
+            hm.update_layout(height=190 + 25 * 24, margin=dict(l=0, r=0, t=10, b=0))
+            st.plotly_chart(hm, key="imb_hm")
 
-        if not zones_i:
-            st.info("Pick at least one zone above for the trend views.")
+        # ---- spot -> imbalance premium
+        st.subheader("Spot to imbalance: the premium")
+        if not is_eur or zd["price_sys"].notna().sum() == 0 or zd["spot"].notna().sum() == 0:
+            st.info("The premium needs both an imbalance price and a spot price in EUR for this zone.")
         else:
-            zsub = win[win["zone"].isin(zones_i)]
-
-            # ---- B: time series
-            st.subheader(f"{m_name} - trend")
-            overlay = False
-            if col in PRICE_COLS and col != "spread":
-                overlay = st.checkbox("Overlay day-ahead spot price (dashed, EUR zones)", value=True)
-            ts = go.Figure()
-            palette = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#17becf", "#8c564b", "#e377c2"]
-            for i, z in enumerate(zones_i):
-                d = zsub[zsub["zone"] == z]
-                colr = palette[i % len(palette)]
-                if col == "volume_mwh" and len(zones_i) == 1:
-                    ts.add_trace(go.Bar(x=d["time"], y=d[col], name=z,
-                                        marker_color=np.where(d[col] >= 0, "#2b6cb0", "#c53030")))
-                else:
-                    ts.add_trace(go.Scatter(x=d["time"], y=d[col], name=z, mode="lines", line=dict(color=colr, width=1.4)))
-                if overlay and cur.get(z) == "EUR":
-                    ts.add_trace(go.Scatter(x=d["time"], y=d["spot"], name=f"{z} spot", mode="lines",
-                                            line=dict(color=colr, width=1, dash="dot"), opacity=0.8))
-            ts.update_layout(height=460, margin=dict(l=0, r=0, t=10, b=0), yaxis_title=unit_of(zones_i),
-                             hovermode="x unified", legend=dict(orientation="h", y=1.1))
-            st.plotly_chart(ts, key="imb_ts")
-
-            # ---- C + D: hour-of-day profile and day x hour heatmap
             left, right = st.columns(2, gap="large")
             with left:
-                st.subheader("Average by hour of day")
-                prof = go.Figure()
-                for i, z in enumerate(zones_i):
-                    g = zsub[zsub["zone"] == z].groupby("hour")[col].mean().reindex(range(24))
-                    prof.add_trace(go.Scatter(x=[hour_label(h) for h in g.index], y=g.values, name=z, mode="lines+markers",
-                                              line=dict(color=palette[i % len(palette)])))
-                prof.update_xaxes(type="category", tickangle=-60)
-                prof.update_layout(height=430, margin=dict(l=0, r=0, t=10, b=0), yaxis_title=unit_of(zones_i),
-                                   legend=dict(orientation="h", y=1.1))
-                st.plotly_chart(prof, key="imb_prof")
+                st.markdown("**Over time**")
+                st.plotly_chart(spot_vs_imbalance(zd["time"], zd["spot"], zd["price_sys"], zd["premium"]),
+                                key="imb_t")
             with right:
-                zh = st.selectbox("Zone for the hour x day heatmap", zones_i, format_func=zlabel)
-                st.subheader(f"{zh}: hour x day")
-                d = zsub[zsub["zone"] == zh]
-                hp = d.pivot_table(index="hour", columns="date", values=col, aggfunc="mean").reindex(range(24))
-                hh = go.Figure(go.Heatmap(
-                    z=hp.to_numpy(), x=[x.strftime("%d %b") for x in hp.columns], y=[hour_label(h) for h in hp.index],
-                    xgap=1, ygap=1, colorbar=dict(title=unit_of([zh]), thickness=12),
-                    hovertemplate="%{x}, hour %{y}: %{z:.2f}<extra></extra>", **color_args(col, d[col]),
-                ))
-                hh.update_yaxes(autorange="reversed", type="category")
-                hh.update_xaxes(type="category", tickangle=-60)
-                hh.update_layout(height=430, margin=dict(l=0, r=0, t=10, b=0))
-                st.plotly_chart(hh, key="imb_hh")
+                st.markdown("**Average by hour of day**")
+                g = zd.groupby("hour")[["spot", "price_sys", "premium"]].mean().reindex(range(24))
+                fh = spot_vs_imbalance([hour_label(h) for h in g.index], g["spot"], g["price_sys"], g["premium"])
+                fh.update_xaxes(type="category", tickangle=-60)
+                st.plotly_chart(fh, key="imb_h")
 
-            # ---- E: summary table
-            st.subheader("Summary over the selected period")
-            rows = []
-            for z in zones_i:
-                d = zsub[zsub["zone"] == z]
-                v = d["volume_mwh"].dropna()
-                rows.append({
-                    "Zone": z, "Currency": cur.get(z, "?"),
-                    "Avg price": d["price_avg"].mean(), "Avg short price": d["price_short"].mean(),
-                    "Avg long price": d["price_long"].mean(), "Avg spot (EUR)": d["spot"].mean(),
-                    "Avg imbalance - spot": d["spread"].mean(),
-                    "Avg volume (MWh/h)": v.mean() if len(v) else np.nan,
-                    "Hours in surplus %": (v > 0).mean() * 100 if len(v) else np.nan,
-                    "Hours in deficit %": (v < 0).mean() * 100 if len(v) else np.nan,
-                    "Hours with data": len(d),
-                })
-            st.dataframe(pd.DataFrame(rows).set_index("Zone"), column_config={
-                c: st.column_config.NumberColumn(format="%.1f") for c in
-                ["Avg price", "Avg short price", "Avg long price", "Avg spot (EUR)", "Avg imbalance - spot",
-                 "Avg volume (MWh/h)", "Hours in surplus %", "Hours in deficit %"]})
-            st.download_button("Download selected imbalance data (CSV)",
-                               zsub.drop(columns=["date", "hour"]).to_csv(index=False).encode(),
-                               file_name="imbalance_selected.csv", mime="text/csv")
+            zm = zd[zd["premium"].notna()]  # only hours that have both a spot and an imbalance price
+            tbl = pd.DataFrame({
+                "Spot": product_means(zm, "spot").loc[zone],
+                "Imbalance price": product_means(zm, "price_sys").loc[zone],
+                "Premium": product_means(zm, "premium").loc[zone],
+            }).T
+            st.markdown(f"**{zone} by product** (EUR/MWh, average over the {len(zm)} hours with both prices)")
+            st.dataframe(tbl, column_config={c: st.column_config.NumberColumn(format="%.1f") for c in PRODUCTS})
+
+        # ---- compare zones + summary
+        st.subheader("Compare zones")
+        others = st.multiselect("Add zones to compare", [z for z in avail if z != zone], format_func=zlabel)
+        zs = [zone] + others
+        zsub = win[win["zone"].isin(zs)]
+        if others:
+            if col != "volume_mwh" and len({cur.get(z) for z in zs}) > 1:
+                st.warning("The selected zones quote prices in different currencies - compare the shapes, "
+                           "not the levels.")
+            palette = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#17becf", "#8c564b", "#e377c2"]
+            cl, cr = st.columns(2, gap="large")
+            with cl:
+                st.markdown(f"**{m_name} - over time**")
+                ts = go.Figure()
+                for i, z in enumerate(zs):
+                    d = zsub[zsub["zone"] == z]
+                    ts.add_trace(go.Scatter(x=d["time"], y=d[col], name=z, mode="lines",
+                                            line=dict(color=palette[i % 8], width=1.3)))
+                ts.update_layout(height=400, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified",
+                                 legend=dict(orientation="h", y=1.1))
+                st.plotly_chart(ts, key="imb_cmp_t")
+            with cr:
+                st.markdown(f"**{m_name} - average by hour of day**")
+                pr = go.Figure()
+                for i, z in enumerate(zs):
+                    g = zsub[zsub["zone"] == z].groupby("hour")[col].mean().reindex(range(24))
+                    pr.add_trace(go.Scatter(x=[hour_label(h) for h in g.index], y=g.values, name=z,
+                                            mode="lines+markers", line=dict(color=palette[i % 8])))
+                pr.update_xaxes(type="category", tickangle=-60)
+                pr.update_layout(height=400, margin=dict(l=0, r=0, t=10, b=0), legend=dict(orientation="h", y=1.1))
+                st.plotly_chart(pr, key="imb_cmp_h")
+
+        rows = []
+        for z in zs:
+            d = zsub[zsub["zone"] == z]
+            v = d["volume_mwh"].dropna()
+            pm = product_means(d, "premium")
+            m = d[d["premium"].notna()] if d["premium"].notna().any() else d  # like-for-like hours
+            rows.append({
+                "Zone": z, "Currency": cur.get(z, "?"),
+                "Avg imbalance price": m["price_sys"].mean(), "Avg spot (EUR)": m["spot"].mean(),
+                "Avg premium": m["premium"].mean(),
+                "Premium peak": pm["Peak"].get(z, np.nan), "Premium off-peak": pm["Off-peak"].get(z, np.nan),
+                "% hours above spot": (d["premium"].dropna() > 0).mean() * 100 if d["premium"].notna().any() else np.nan,
+                "Avg volume (MWh/h)": v.mean() if len(v) else np.nan,
+                "% hours surplus": (v > 0).mean() * 100 if len(v) else np.nan,
+                "% hours deficit": (v < 0).mean() * 100 if len(v) else np.nan,
+                "Hours with data": len(d),
+            })
+        st.markdown("**Summary over the period** (price columns use only hours that have both a spot and an imbalance price)")
+        st.dataframe(pd.DataFrame(rows).set_index("Zone"), column_config={
+            c: st.column_config.NumberColumn(format="%.1f") for c in
+            ["Avg imbalance price", "Avg spot (EUR)", "Avg premium", "Premium peak", "Premium off-peak",
+             "% hours above spot", "Avg volume (MWh/h)", "% hours surplus", "% hours deficit"]})
+        st.download_button("Download imbalance data for these zones (CSV)",
+                           zsub.drop(columns=["date", "hour"]).to_csv(index=False).encode(),
+                           file_name="imbalance_selected.csv", mime="text/csv")

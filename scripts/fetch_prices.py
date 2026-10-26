@@ -25,6 +25,7 @@ CSV = ROOT / "data" / "prices.csv"
 MARKET_TZ = "Europe/Brussels"  # ENTSO-E / market time
 KEEP_DAYS = 60
 OVERLAP_DAYS = 3
+TARGET_DAYS = 45  # history to build up to; zones with less get a one-time backfill (imbalance analysis needs it)
 TIME_BUDGET_S = 12 * 60  # stop starting new zones after this; whatever arrived is still saved
 WORKERS = 6  # ENTSO-E allows 400 requests/min per token
 
@@ -47,12 +48,16 @@ end = today + pd.Timedelta(days=2)  # exclusive; covers all of tomorrow
 # per zone: newest stored price (NaT if none). Stalest zones go first so that, if the
 # API is slow and the time budget runs out, the same zones don't starve on every run.
 latest = old.groupby("zone")["time"].max().reindex(ZONE_CODES)
+earliest = old.groupby("zone")["time"].min().reindex(ZONE_CODES)
 order = sorted(ZONE_CODES, key=lambda z: latest[z] if pd.notna(latest[z]) else pd.Timestamp(0, tz="UTC"))
 
 
 def start_for(zone):
     if pd.isna(latest[zone]):
         return today - pd.Timedelta(days=args.history_days)
+    target = today - pd.Timedelta(days=TARGET_DAYS)
+    if earliest[zone] > (target + pd.Timedelta(days=2)).tz_convert("UTC"):
+        return target  # history too short: backfill once
     return max(latest[zone].tz_convert(MARKET_TZ).normalize() - pd.Timedelta(days=OVERLAP_DAYS), floor)
 
 

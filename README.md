@@ -4,14 +4,17 @@ Interactive Streamlit dashboard of day-ahead electricity prices for 46 European 
 fed by the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) through
 [entsoe-py](https://github.com/EnergieID/entsoe-py).
 
-- **Map tab** - a full-page map of the zones coloured by price (daily average or a single hour). Click a
-  zone to add it to the selection, click again to remove it. Underneath: average / min / max, cheapest and
-  priciest hour, an hourly table and a chart for the selected zones.
+- **Map tab** - a full-page map of the zones coloured by a power-market product: Base (24 h average), Peak
+  (08-20), Off-peak 1 (00-08), Off-peak 2 (20-24), Off-peak, Morning shoulder (06-09), Evening shoulder
+  (17-20), or a single hour. Click a zone to add it to the selection, click again to remove it. Underneath:
+  those products per selected zone, an hourly table and a chart. The block definitions live in `PRODUCTS`
+  at the top of `app.py`.
 - **Matrix tab** - hours 1-24 down, zones across, grouped into CWE (incl. Ireland), Nordics, Baltics,
-  Eastern Europe, Balkan, Italy and Iberia, with a regional summary.
-- **Imbalance tab** - imbalance prices (long / short), volumes and imbalance-minus-spot for the last
-  7-30 days: all zones x days heatmap (optionally for one hour of the day), trend with spot overlay,
-  hour-of-day profile, hour x day heatmap and a summary table.
+  Eastern Europe, Balkan, Italy and Iberia, with the same products per region and per zone.
+- **Imbalance tab** - pick a zone: hour x day heatmap of the imbalance price, premium or volume (newest day
+  first, up to 30 days), spot vs imbalance price over time and by hour of day, the premium by product,
+  zone comparison and a summary. The *imbalance price* is the price in the direction the system was out of
+  balance (short price when in deficit, long price when in surplus); *premium* = imbalance price - spot.
 
 ## How it works
 
