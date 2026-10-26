@@ -4,23 +4,32 @@ Interactive Streamlit dashboard of day-ahead electricity prices for 46 European 
 fed by the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) through
 [entsoe-py](https://github.com/EnergieID/entsoe-py).
 
-- **Map tab** - click a zone (shift-click for several) to get its hourly prices in a table, plus
-  average / min / max and cheapest / priciest hour. The map can show the daily average or a single hour.
-- **Matrix tab** - every zone x every hour for the chosen day, grouped into CWE, Nordics, Baltics,
+- **Map tab** - a full-page map of the zones coloured by price (daily average or a single hour). Click a
+  zone to add it to the selection, click again to remove it. Underneath: average / min / max, cheapest and
+  priciest hour, an hourly table and a chart for the selected zones.
+- **Matrix tab** - hours 1-24 down, zones across, grouped into CWE (incl. Ireland), Nordics, Baltics,
   Eastern Europe, Balkan, Italy and Iberia, with a regional summary.
+- **Imbalance tab** - imbalance prices (long / short), volumes and imbalance-minus-spot for the last
+  7-30 days: all zones x days heatmap (optionally for one hour of the day), trend with spot overlay,
+  hour-of-day profile, hour x day heatmap and a summary table.
 
 ## How it works
 
 ```
 GitHub Actions (hourly 13:30-17:30 market time)
-   -> scripts/fetch_prices.py  -> data/prices.csv  (committed to the repo)
+   -> scripts/fetch_prices.py     -> data/prices.csv     (committed to the repo)
+   -> scripts/fetch_imbalance.py  -> data/imbalance.csv  + imbalance_currency.json
                                         |
                        Streamlit app (app.py) reads the CSV
 ```
 
 - ENTSO-E publishes next-day prices around 13:00 CET, but some zones appear later. The workflow
   therefore runs several times in the afternoon and commits only when data changed.
-- The CSV holds the last 60 days of hourly prices (`zone, time (UTC), price_eur_mwh`).
+- `prices.csv` holds the last 60 days of hourly spot prices (`zone, time (UTC), price_eur_mwh`).
+- `imbalance.csv` holds 45 days of hourly imbalance data (`zone, time, price_long, price_short, volume_mwh`).
+  Prices are means, volumes are sums; positive volume = surplus, negative = deficit. ENTSO-E quotes imbalance
+  prices in each country's own currency, so the currency per zone is stored and non-EUR zones are not compared
+  with spot. Not every zone publishes imbalance data.
 - Times in the app are shown in market time (CET/CEST). 15-minute prices are averaged to hours.
 - `zones.py` is the single list of zones, names and market regions.
 - `data/zones.geojson` was built with `scripts/build_geo.py` from Natural Earth (public domain).

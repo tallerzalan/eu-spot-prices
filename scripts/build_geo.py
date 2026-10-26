@@ -105,8 +105,11 @@ europe = box(-12, 34, 34, 72)
 rows = []
 for zone, geom in geoms.items():
     g = gpd.GeoSeries([geom.intersection(europe)]).simplify(0.02, preserve_topology=True).iloc[0]
-    rows.append({"id": zone, "zone": zone, "name": ZONE_NAME[zone],
-                 "region": ZONE_REGION[zone], "geometry": g})
+    # label anchor: a point inside the zone's largest polygon
+    biggest = max(g.geoms, key=lambda x: x.area) if g.geom_type == "MultiPolygon" else g
+    pt = biggest.representative_point()
+    rows.append({"id": zone, "zone": zone, "name": ZONE_NAME[zone], "region": ZONE_REGION[zone],
+                 "lon": round(pt.x, 3), "lat": round(pt.y, 3), "geometry": g})
 
 gdf = gpd.GeoDataFrame(rows, crs="EPSG:4326")
 out.parent.mkdir(exist_ok=True)

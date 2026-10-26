@@ -8,13 +8,14 @@ UA_IPS, which is quoted in UAH.
 
 # zone code (entsoe-py Area name) -> (display name, market region)
 ZONES = {
-    # CWE (+ Austria and Switzerland)
+    # CWE (+ Austria, Switzerland and Ireland)
     "AT": ("Austria", "CWE"),
     "BE": ("Belgium", "CWE"),
     "CH": ("Switzerland", "CWE"),
     "DE_LU": ("Germany / Luxembourg", "CWE"),
     "FR": ("France", "CWE"),
     "NL": ("Netherlands", "CWE"),
+    "IE_SEM": ("Ireland (SEM)", "CWE"),
     # Nordics
     "DK_1": ("West Denmark", "Nordics"),
     "DK_2": ("East Denmark", "Nordics"),
@@ -60,11 +61,9 @@ ZONES = {
     # Iberia
     "ES": ("Spain", "Iberia"),
     "PT": ("Portugal", "Iberia"),
-    # Everything else
-    "IE_SEM": ("Ireland (SEM)", "Other"),
 }
 
-REGION_ORDER = ["CWE", "Nordics", "Baltics", "Eastern Europe", "Balkan", "Italy", "Iberia", "Other"]
+REGION_ORDER = ["CWE", "Nordics", "Baltics", "Eastern Europe", "Balkan", "Italy", "Iberia"]
 
 ZONE_CODES = list(ZONES)
 ZONE_NAME = {code: name for code, (name, _) in ZONES.items()}

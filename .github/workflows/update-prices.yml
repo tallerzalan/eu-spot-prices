@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Check market-time window
@@ -35,10 +35,10 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: steps.gate.outputs.run == 'true'
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         if: steps.gate.outputs.run == 'true'
         with:
           python-version: "3.12"
@@ -55,12 +55,19 @@ jobs:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: python scripts/fetch_prices.py
 
+      - name: Fetch imbalance prices and volumes
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true # never let imbalance problems block the spot prices
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: python scripts/fetch_imbalance.py
+
       - name: Commit changes
         if: steps.gate.outputs.run == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/prices.csv
+          git add -A data/
           if git diff --cached --quiet; then
             echo "No new prices."
           else
