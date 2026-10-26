@@ -1,0 +1,2 @@
+entsoe-py>=0.8.1
+pandas>=2.2
