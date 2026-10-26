@@ -32,7 +32,6 @@ PRODUCT_HELP = ("**Base** = all 24 hours (the daily average) · **Peak** = 08:00
                 "**Morning shoulder** = 06:00-09:00 · **Evening shoulder** = 17:00-20:00. "
                 "Market time (CET/CEST); simple averages of the hourly prices. "
                 "The peak product is formally a weekday product - weekend values use the same hours.")
-EUR_PRICE_CAP = 10_000  # EUR/MWh: imbalance prices beyond this are treated as data errors
 
 
 def product_means(df: pd.DataFrame, col: str = "price_eur_mwh") -> pd.DataFrame:
@@ -80,14 +79,14 @@ def load_geo() -> dict:
 
 @st.cache_data(show_spinner=False)
 def load_imbalance(mtime: float, spot_mtime: float):
-    """Hourly imbalance data joined with spot. Returns (dataframe, currency per zone).
+    """Hourly imbalance data in EUR, joined with spot. Returns (dataframe, original currency per zone).
 
-    Cleaning done here:
+    - prices quoted in another currency (CZK, PLN, RON, ...) are converted with the ECB reference rate
+      of the same day (data/fx.csv, forward-filled over weekends); nothing is dropped, however extreme
     - zones whose "short" price is always ~0 publish a single price in the "long" column -> use it for both
-    - EUR zones: prices beyond +-EUR_PRICE_CAP are data errors (e.g. HU) -> dropped
     - zones with no currency tag get EUR if their prices sit at the same level as spot
-    price_sys = the price that applies in the direction the system was out of balance:
-    short price when the system was short (deficit), long price when it was long (surplus).
+    price_sys = the price that applied in the direction the system was out of balance:
+    price_short (upregulation) when the system was short, price_long (downregulation) when it was long.
     """
     df = pd.read_csv(DATA / "imbalance.csv", parse_dates=["time"])
     df["time"] = pd.to_datetime(df["time"], utc=True)
@@ -104,16 +103,28 @@ def load_imbalance(mtime: float, spot_mtime: float):
 
     short_unused = (df["price_short"].abs() < 0.01).groupby(df["zone"]).transform("mean") > 0.9
     df.loc[short_unused, "price_short"] = df.loc[short_unused, "price_long"]
-    is_eur = df["zone"].map(lambda z: cur.get(z) == "EUR")
+
+    # ---- to EUR
+    day = df["time"].dt.tz_convert(MARKET_TZ).dt.tz_localize(None).dt.normalize()
+    fx_path = DATA / "fx.csv"
+    fx = pd.read_csv(fx_path, parse_dates=["date"]).pivot(index="date", columns="currency", values="per_eur")         if fx_path.exists() else pd.DataFrame()
+    if len(fx):
+        fx = fx.reindex(pd.date_range(min(fx.index.min(), day.min()), max(fx.index.max(), day.max()))).ffill().bfill()
+    rate = pd.Series(1.0, index=df.index)
+    for z, c in cur.items():
+        if c == "EUR":
+            continue
+        m = df["zone"] == z
+        rate[m] = day[m].map(fx[c]) if c in fx.columns else np.nan
     for c in ("price_long", "price_short"):
-        df.loc[is_eur & (df[c].abs() > EUR_PRICE_CAP), c] = np.nan
+        df[c] = df[c] / rate
 
     df["price_avg"] = df[["price_long", "price_short"]].mean(axis=1)
     v = df["volume_mwh"]
     df["price_sys"] = np.where(v < 0, df["price_short"], np.where(v > 0, df["price_long"], df["price_avg"]))
     df["price_sys"] = df["price_sys"].fillna(df["price_avg"])
-    df["premium"] = np.where(is_eur, df["price_sys"] - df["spot"], np.nan)
-    df.loc[~is_eur, "spot"] = np.nan  # spot is in EUR - only meaningful next to EUR imbalance prices
+    df["premium"] = df["price_sys"] - df["spot"]
+    df["spot"] = df["spot"].where(df["price_sys"].notna())
 
     df["time"] = df["time"].dt.tz_convert(MARKET_TZ)
     df["date"] = df["time"].dt.date
@@ -341,50 +352,80 @@ IMB_METRICS = {
     "Imbalance price": "price_sys",
     "Premium: imbalance price minus spot": "premium",
     "Imbalance volume (MWh)": "volume_mwh",
-    "Short price (paid when in deficit)": "price_short",
-    "Long price (paid when in surplus)": "price_long",
+    "Upregulation price (system short)": "price_short",
+    "Downregulation price (system long)": "price_long",
 }
 IMB_HELP = """
-**Imbalance** is what is left over after the day-ahead market: the gap between what balance-responsible parties
-scheduled and what they actually produced or used. The grid operator settles that gap at an *imbalance price*.
+**Colours:** green = bull, red = bear. Premium above spot is green, below spot is red. Upregulation is green,
+downregulation is red.
 
-- **Imbalance price** (default) - the price that applied in the direction the system was actually out of balance:
-  the *short* price when the system had a **deficit**, the *long* price when it had a **surplus**. In single-price
-  countries there is only one price, so short = long. This is the number to compare with spot.
-- **Premium** - imbalance price minus the day-ahead spot price of the same hour. Positive (red) = settling imbalance
-  was more expensive than buying in the day-ahead market. Only computed for zones quoting EUR.
-- **Volume** - net imbalance of the whole zone in MWh. Positive (blue) = surplus, negative (red) = deficit.
-- **Short / long price** - the two raw prices for parties that are short (deficit) or long (surplus). They only differ
-  in dual-price countries (e.g. FR, NL, ES, PT).
+**Imbalance** - the grid is in balance when the electricity produced equals the electricity consumed in real time.
+When it does not, the grid operator (TSO) settles the difference at an *imbalance price*.
 
-Hourly values: prices are averages of the published 15-minute/hourly prices, volumes are sums. Prices are in each
-country's own currency (shown in brackets). EUR prices beyond +-10,000 EUR/MWh are treated as data errors and dropped.
+- **Positive imbalance (surplus, system long, downregulation, red)** - supply exceeds demand, e.g. a spike in wind or
+  solar or a sudden drop in demand. Too much surplus pushes the grid frequency up and can overload equipment.
+  The TSO pays to scale generation back or demand up.
+- **Negative imbalance (deficit, system short, upregulation, green)** - demand exceeds supply, e.g. a large plant
+  trips or consumers use more than forecast. A deficit pulls the frequency down and risks outages. The TSO pays to
+  ramp generation up or demand down.
+
+**Imbalance price** - the rate the TSO applies to settle the gap between what a balance-responsible party (BRP)
+planned and what it actually injected or withdrew in a settlement period. This is the number to compare with spot.
+
+- In a **short system** (deficit) the TSO has to buy extra power. A BRP that contributed (took out more or injected
+  less than planned) buys the missing energy at the high imbalance price.
+- In a **long system** (surplus) the TSO pays to scale back. A BRP that produced too much or consumed too little
+  sells its excess at the imbalance price. In extreme over-supply this price can drop below zero, so the BRP
+  pays to dump power into a congested grid.
+
+**What the tab shows**
+
+- **Imbalance price** - the price of the direction the system was actually out of balance: the upregulation price
+  in a deficit hour, the downregulation price in a surplus hour (single-price countries have only one price).
+- **Premium** - imbalance price minus the day-ahead spot price of the same hour.
+  Positive (green, bull) = settling the imbalance was more expensive than buying on the day-ahead auction.
+  Negative (red, bear) = it was cheaper than spot.
+- **Volume** - net imbalance of the whole zone in MWh. Positive = surplus = downregulation = red (bear).
+  Negative = deficit = upregulation = green (bull).
+- **Upregulation / downregulation price** - the two raw prices. The upregulation price (ENTSO-E "short") applies
+  in hours where the system needs more power, the downregulation price (ENTSO-E "long") where it needs less.
+  A party that helps the grid (short while the system is long, long while it is short) is not penalised; a party that
+  worsens the imbalance settles at the unfavourable price. The two only differ in dual-price countries
+  (e.g. FR, NL, ES, PT).
+
+Hourly values: prices are averages of the published 15-minute/hourly prices, volumes are sums. All prices are in
+EUR/MWh. Zones that quote another currency (CZ, PL, RO) are converted with the ECB reference rate of the same day.
+No price is dropped, however high or low. Price colours are capped at the 2nd/98th percentile so outliers do not wash
+out the scale; the values themselves are untouched.
 """
+
+
+BULL, BEAR = "#2f9e44", "#e03131"  # green = bull (above spot / upregulation), red = bear (below spot / downregulation)
 
 
 def color_args(col: str, series: pd.Series) -> dict:
     v = series.dropna()
     if v.empty:
-        return dict(colorscale=COLORSCALE)
+        return dict(colorscale="Blues")
     lo, hi = np.nanpercentile(v, [2, 98])
     if col in ("volume_mwh", "premium"):
         m = float(max(abs(lo), abs(hi))) or 1.0
-        # volume: red = deficit, blue = surplus; premium: red = imbalance above spot
-        return dict(colorscale="RdBu" if col == "volume_mwh" else "RdBu_r", zmin=-m, zmax=m, zmid=0)
-    return dict(colorscale=COLORSCALE, zmin=float(lo), zmax=float(hi))
+        # premium: green above spot, red below. volume: surplus (+) = downregulation = red, deficit (-) = green
+        return dict(colorscale="RdYlGn" if col == "premium" else "RdYlGn_r", zmin=-m, zmax=m, zmid=0)
+    return dict(colorscale="Blues", zmin=float(lo), zmax=float(hi))  # price level: neutral, green/red mean direction
 
 
 def spot_vs_imbalance(x, spot, imbp, prem, height=470):
     f = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.62, 0.38], vertical_spacing=0.05)
     f.add_trace(go.Scatter(x=x, y=spot, name="Spot (day-ahead)", mode="lines",
-                           line=dict(color="#2b6cb0", width=1.6)), row=1, col=1)
+                           line=dict(color="#868e96", width=1.6)), row=1, col=1)
     f.add_trace(go.Scatter(x=x, y=imbp, name="Imbalance price", mode="lines",
-                           line=dict(color="#d9480f", width=1.6)), row=1, col=1)
+                           line=dict(color="#1c1c1c", width=1.6)), row=1, col=1)
     f.add_trace(go.Bar(x=x, y=prem, name="Premium", showlegend=False,
-                       marker_color=np.where(np.nan_to_num(np.asarray(prem, dtype=float)) >= 0, "#d9480f", "#2b6cb0")),
+                       marker_color=np.where(np.nan_to_num(np.asarray(prem, dtype=float)) >= 0, BULL, BEAR)),
                 row=2, col=1)
     f.update_yaxes(title_text="EUR/MWh", row=1, col=1)
-    f.update_yaxes(title_text="Premium", row=2, col=1)
+    f.update_yaxes(title_text="Premium (EUR/MWh)", row=2, col=1)
     f.update_layout(height=height, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified",
                     legend=dict(orientation="h", y=1.1))
     return f
@@ -400,7 +441,7 @@ with tab_imb:
         avail = [z for z in ZONE_CODES if z in set(imb["zone"])]
 
         def zlabel(z):
-            return f"{z} - {ZONE_NAME[z]} ({cur.get(z, '?')})"
+            return f"{z} - {ZONE_NAME[z]}"
 
         c1, c2, c3 = st.columns([2, 2, 1])
         default_zone = next((z for z in ["NL", "FR", "BE", "DK_1", "SE_3"] if z in avail), avail[0])
@@ -414,20 +455,18 @@ with tab_imb:
             st.markdown(IMB_HELP)
 
         col = IMB_METRICS[m_name]
-        is_eur = cur.get(zone) == "EUR"
         last = imb["date"].max()
         win = imb[imb["date"] > last - pd.Timedelta(days=days)]
         zd = win[win["zone"] == zone]
-        unit = "MWh" if col == "volume_mwh" else f"{cur.get(zone, '?')}/MWh"
+        unit = "MWh" if col == "volume_mwh" else "EUR/MWh"
         st.caption(f"{zlabel(zone)} · {win['date'].min():%d %b} - {last:%d %b %Y} (market time) · "
-                   f"{len(avail)} zones publish imbalance data.")
+                   f"{len(avail)} zones publish imbalance data."
+                   + (f" · {zone} is quoted in {cur[zone]}, converted to EUR at the daily ECB rate."
+                      if cur.get(zone) not in ("EUR", None) else ""))
 
         # ---- hour x day heatmap (newest day first)
         st.subheader(f"{zone}: {m_name.split(':')[0].lower()} by hour and day")
-        if col == "premium" and not is_eur:
-            st.info(f"{zone} quotes imbalance prices in {cur.get(zone, 'an unknown currency')}, so there is no "
-                    "premium against the EUR spot price. Pick another metric.")
-        elif zd[col].notna().sum() == 0:
+        if zd[col].notna().sum() == 0:
             st.info(f"{zone} has no {m_name.lower()} data in this period.")
         else:
             hp = zd.pivot_table(index="hour", columns="date", values=col, aggfunc="mean").reindex(range(24))
@@ -446,8 +485,8 @@ with tab_imb:
 
         # ---- spot -> imbalance premium
         st.subheader("Spot to imbalance: the premium")
-        if not is_eur or zd["price_sys"].notna().sum() == 0 or zd["spot"].notna().sum() == 0:
-            st.info("The premium needs both an imbalance price and a spot price in EUR for this zone.")
+        if zd["price_sys"].notna().sum() == 0 or zd["spot"].notna().sum() == 0:
+            st.info("The premium needs both an imbalance price and a spot price for this zone.")
         else:
             left, right = st.columns(2, gap="large")
             with left:
@@ -476,10 +515,7 @@ with tab_imb:
         zs = [zone] + others
         zsub = win[win["zone"].isin(zs)]
         if others:
-            if col != "volume_mwh" and len({cur.get(z) for z in zs}) > 1:
-                st.warning("The selected zones quote prices in different currencies - compare the shapes, "
-                           "not the levels.")
-            palette = ["#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#ff7f0e", "#17becf", "#8c564b", "#e377c2"]
+            palette = ["#1f77b4", "#9467bd", "#ff7f0e", "#17becf", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22"]
             cl, cr = st.columns(2, gap="large")
             with cl:
                 st.markdown(f"**{m_name} - over time**")
@@ -509,21 +545,21 @@ with tab_imb:
             pm = product_means(d, "premium")
             m = d[d["premium"].notna()] if d["premium"].notna().any() else d  # like-for-like hours
             rows.append({
-                "Zone": z, "Currency": cur.get(z, "?"),
-                "Avg imbalance price": m["price_sys"].mean(), "Avg spot (EUR)": m["spot"].mean(),
+                "Zone": z, "Quoted in": cur.get(z, "?"),
+                "Avg imbalance price": m["price_sys"].mean(), "Avg spot": m["spot"].mean(),
                 "Avg premium": m["premium"].mean(),
                 "Premium peak": pm["Peak"].get(z, np.nan), "Premium off-peak": pm["Off-peak"].get(z, np.nan),
                 "% hours above spot": (d["premium"].dropna() > 0).mean() * 100 if d["premium"].notna().any() else np.nan,
                 "Avg volume (MWh/h)": v.mean() if len(v) else np.nan,
-                "% hours surplus": (v > 0).mean() * 100 if len(v) else np.nan,
-                "% hours deficit": (v < 0).mean() * 100 if len(v) else np.nan,
+                "% hours surplus (down)": (v > 0).mean() * 100 if len(v) else np.nan,
+                "% hours deficit (up)": (v < 0).mean() * 100 if len(v) else np.nan,
                 "Hours with data": len(d),
             })
-        st.markdown("**Summary over the period** (price columns use only hours that have both a spot and an imbalance price)")
+        st.markdown("**Summary over the period** (EUR/MWh; price columns use only hours that have both a spot and an imbalance price)")
         st.dataframe(pd.DataFrame(rows).set_index("Zone"), column_config={
             c: st.column_config.NumberColumn(format="%.1f") for c in
-            ["Avg imbalance price", "Avg spot (EUR)", "Avg premium", "Premium peak", "Premium off-peak",
-             "% hours above spot", "Avg volume (MWh/h)", "% hours surplus", "% hours deficit"]})
+            ["Avg imbalance price", "Avg spot", "Avg premium", "Premium peak", "Premium off-peak",
+             "% hours above spot", "Avg volume (MWh/h)", "% hours surplus (down)", "% hours deficit (up)"]})
         st.download_button("Download imbalance data for these zones (CSV)",
                            zsub.drop(columns=["date", "hour"]).to_csv(index=False).encode(),
                            file_name="imbalance_selected.csv", mime="text/csv")

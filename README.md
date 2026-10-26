@@ -31,8 +31,10 @@ GitHub Actions (hourly 13:30-17:30 market time)
 - `prices.csv` holds the last 60 days of hourly spot prices (`zone, time (UTC), price_eur_mwh`).
 - `imbalance.csv` holds 45 days of hourly imbalance data (`zone, time, price_long, price_short, volume_mwh`).
   Prices are means, volumes are sums; positive volume = surplus, negative = deficit. ENTSO-E quotes imbalance
-  prices in each country's own currency, so the currency per zone is stored and non-EUR zones are not compared
-  with spot. Not every zone publishes imbalance data.
+  prices in each country's own currency (CZK, PLN, RON); the app converts them to EUR with the ECB daily
+  reference rate (`data/fx.csv`, fetched by `scripts/fetch_fx.py`, no key needed). Nothing is dropped as an
+  outlier. Colours: green = bull (premium above spot, upregulation), red = bear (below spot, downregulation).
+  Not every zone publishes imbalance data.
 - Times in the app are shown in market time (CET/CEST). 15-minute prices are averaged to hours.
 - `zones.py` is the single list of zones, names and market regions.
 - `data/zones.geojson` was built with `scripts/build_geo.py` from Natural Earth (public domain).

@@ -62,6 +62,11 @@ jobs:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: python scripts/fetch_imbalance.py
 
+      - name: Fetch ECB exchange rates
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true # imbalance prices in CZK/PLN/RON are converted to EUR with these
+        run: python scripts/fetch_fx.py
+
       - name: Commit changes
         if: steps.gate.outputs.run == 'true'
         run: |
