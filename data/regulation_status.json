@@ -1,232 +1,232 @@
 {
  "AL": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: AL/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: AL/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YAL-KESH-----5&businessType=A96&securit"
  },
  "AT": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: AT/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: AT/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YAT-APG------L&businessType=A96&securit"
  },
  "BE": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: BE/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: BE/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YBE----------2&businessType=A96&securit"
  },
  "BG": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: BG/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: BG/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YCA-BULGARIA-R&businessType=A96&securit"
  },
  "CH": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: CH/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: CH/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YCH-SWISSGRIDZ&businessType=A96&securit"
  },
  "CZ": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: CZ/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: CZ/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YCZ-CEPS-----N&businessType=A96&securit"
  },
  "DE_LU": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: DE_50HZ/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: DE_50HZ/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YDE-VE-------2&businessType=A96&securit"
  },
  "DK_1": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: DK_1/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: DK_1/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YDK-1--------W&businessType=A96&securit"
  },
  "DK_2": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: DK_2/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: DK_2/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YDK-2--------M&businessType=A96&securit"
  },
  "EE": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: EE/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: EE/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A39I&businessType=A96&securit"
  },
  "ES": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: ES/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: ES/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YES-REE------0&businessType=A96&securit"
  },
  "FI": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: FI/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: FI/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YFI-1--------U&businessType=A96&securit"
  },
  "FR": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: FR/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: FR/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YFR-RTE------C&businessType=A96&securit"
  },
  "GR": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: GR/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: GR/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YGR-HTSO-----Y&businessType=A96&securit"
  },
  "HR": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: HR/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: HR/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YHR-HEP------M&businessType=A96&securit"
  },
  "HU": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: HU/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: HU/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YHU-MAVIR----U&businessType=A96&securit"
  },
  "IE_SEM": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: IE_SEM/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: IE_SEM/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A59C&businessType=A96&securit"
  },
  "IT_CALA": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: IT_CALA/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: IT_CALA/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001C--00096J&businessType=A96&securit"
  },
  "IT_CNOR": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: IT_CNOR/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: IT_CNOR/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A70O&businessType=A96&securit"
  },
  "IT_CSUD": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: IT_CSUD/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: IT_CSUD/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A71M&businessType=A96&securit"
  },
  "IT_NORD": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: IT_NORD/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: IT_NORD/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A73I&businessType=A96&securit"
  },
  "IT_SARD": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: IT_SARD/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: IT_SARD/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A74G&businessType=A96&securit"
  },
  "IT_SICI": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: IT_SICI/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: IT_SICI/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A75E&businessType=A96&securit"
  },
  "IT_SUD": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: IT_SUD/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: IT_SUD/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A788&businessType=A96&securit"
  },
  "LT": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: LT/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: LT/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YLT-1001A0008Q&businessType=A96&securit"
  },
  "LV": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: LV/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: LV/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YLV-1001A00074&businessType=A96&securit"
  },
  "MD": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: MD/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: MD/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A990&businessType=A96&securit"
  },
  "ME": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: ME/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: ME/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YCS-CG-TSO---S&businessType=A96&securit"
  },
  "MK": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: MK/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: MK/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YMK-MEPSO----8&businessType=A96&securit"
  },
  "NL": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: NL/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: NL/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YNL----------L&businessType=A96&securit"
  },
  "NO_1": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: NO_1/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: NO_1/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YNO-1--------2&businessType=A96&securit"
  },
  "NO_2": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: NO_2/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: NO_2/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YNO-2--------T&businessType=A96&securit"
  },
  "NO_3": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: NO_3/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: NO_3/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YNO-3--------J&businessType=A96&securit"
  },
  "NO_4": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: NO_4/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: NO_4/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YNO-4--------9&businessType=A96&securit"
  },
  "NO_5": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: NO_5/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: NO_5/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A48H&businessType=A96&securit"
  },
  "PL": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: PL/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: PL/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YPL-AREA-----S&businessType=A96&securit"
  },
  "PT": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: PT/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: PT/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YPT-REN------W&businessType=A96&securit"
  },
  "RO": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: RO/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: RO/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YRO-TEL------P&businessType=A96&securit"
  },
  "RS": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: RS/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: RS/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YCS-SERBIATSOV&businessType=A96&securit"
  },
  "SE_1": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: SE_1/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: SE_1/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A44P&businessType=A96&securit"
  },
  "SE_2": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: SE_2/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: SE_2/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A45N&businessType=A96&securit"
  },
  "SE_3": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: SE_3/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: SE_3/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A46L&businessType=A96&securit"
  },
  "SE_4": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: SE_4/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: SE_4/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001A1001A47J&businessType=A96&securit"
  },
  "SI": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: SI/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: SI/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YSI-ELES-----O&businessType=A96&securit"
  },
  "SK": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: SK/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: SK/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10YSK-SEPS-----K&businessType=A96&securit"
  },
  "XK": {
   "status": "error",
-  "checked": "2026-10-27T12:56Z",
-  "error": "RuntimeError: XK/A96: retries exhausted"
+  "checked": "2026-10-27T16:48Z",
+  "error": "RuntimeError: XK/A96: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documentType=A83&controlArea_Domain=10Y1001C--00100H&businessType=A96&securit"
  }
 }
