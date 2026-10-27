@@ -14,6 +14,7 @@ Incremental like the other fetch scripts.  Usage:  ENTSOE_API_KEY=... python scr
 """
 import json
 import os
+import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -31,6 +32,7 @@ from zones import ZONE_CODES  # noqa: E402
 
 CSV = ROOT / "data" / "regulation_15min.csv"
 STATUS = ROOT / "data" / "regulation_status.json"
+PROBE = ROOT / "data" / "regulation_probe.json"
 MARKET_TZ = "Europe/Brussels"
 KEEP_DAYS = 30
 OVERLAP_DAYS = 2
@@ -75,47 +77,85 @@ def parse(content, tz):
     return parse_contracted_reserve(content, tz, "quantity")
 
 
-# ENTSO-E "Activated Balancing Energy" [17.1.E] needs a processType. entsoe-py leaves it out (HTTP 400), so
-# the request is built here. Variants are tried in order; the first one ENTSO-E accepts is used.
+# ENTSO-E "Activated Balancing Energy" [17.1.E]. entsoe-py's own call is rejected (HTTP 400), so the request is
+# built here. Which parameter combination ENTSO-E accepts is not documented reliably, so a probe at the start of
+# every run tries the candidates on one zone, logs ENTSO-E's reason for each rejection (also written to
+# data/regulation_probe.json) and uses the first one that is accepted.
 PROCESS_TYPES = {"A96": "A51", "A97": "A47", "A98": "A46"}  # aFRR / mFRR / RR process types
 CHUNK_DAYS = 7  # keep every response well below ENTSO-E's document limit
-variant_used = {}
+CANDIDATES = {
+    "A16+businessType": lambda a, b: {"controlArea_Domain": a, "processType": "A16", "businessType": b},
+    "A16": lambda a, b: {"controlArea_Domain": a, "processType": "A16"},
+    "businessType": lambda a, b: {"controlArea_Domain": a, "businessType": b},
+    "none": lambda a, b: {"controlArea_Domain": a},
+    "productProcess": lambda a, b: {"controlArea_Domain": a, "processType": PROCESS_TYPES[b]},
+    "A16+businessType+standardProduct": lambda a, b: {"controlArea_Domain": a, "processType": "A16",
+                                                      "businessType": b, "standardMarketProduct": "A01"},
+    "A16+standardProduct": lambda a, b: {"controlArea_Domain": a, "processType": "A16",
+                                         "standardMarketProduct": "A01"},
+    "A16+businessType+originalProduct": lambda a, b: {"controlArea_Domain": a, "processType": "A16",
+                                                      "businessType": b, "originalMarketProduct": "A01"},
+    "A16+businessType+area_Domain": lambda a, b: {"area_Domain": a, "processType": "A16", "businessType": b},
+}
+chosen = {"name": None}
 
 
-def request_variants(area_code, business_type):
-    base = {"documentType": "A83", "controlArea_Domain": area_code}
-    return [
-        {**base, "processType": "A16", "businessType": business_type},
-        {**base, "processType": "A16"},
-        {**base, "processType": PROCESS_TYPES[business_type]},
-    ]
+def reason_text(exc):
+    """The <text> of ENTSO-E's acknowledgement document (the actual reason), else the exception text."""
+    body = getattr(getattr(exc, "response", None), "text", "") or ""
+    m = re.search(r"<text[^>]*>(.*?)</text>", body, re.S | re.I)
+    return " ".join((m.group(1) if m else body or str(exc)).split())[:300]
+
+
+def request(client, params, c_start, c_end):
+    return client._base_request(params={"documentType": "A83", **params}, start=c_start, end=c_end).content
+
+
+def probe():
+    """Try every candidate on FR (then BE) for one day; remember the first one ENTSO-E accepts."""
+    client = EntsoeRawClient(api_key=API_KEY, timeout=60, retry_count=1, retry_delay=3)
+    p_start, p_end = today - pd.Timedelta(days=3), today - pd.Timedelta(days=1)
+    report = {}
+    for zone in ("FR", "BE"):
+        area = lookup_area(zone)
+        for name, build in CANDIDATES.items():
+            key = f"{zone}/{name}"
+            try:
+                content = request(client, build(area.code, "A96"), p_start, p_end)
+                report[key] = f"OK ({len(content)} bytes)"
+            except Exception as exc:
+                if type(exc).__name__ == "NoMatchingDataError":
+                    report[key] = "accepted, no data"
+                else:
+                    report[key] = f"REJECTED: {reason_text(exc)}"
+            print(f"  probe {key}: {report[key]}", flush=True)
+            if not report[key].startswith("REJECTED") and chosen["name"] is None:
+                chosen["name"] = name
+        if chosen["name"]:
+            break
+    PROBE.write_text(json.dumps({"checked": stamp, "chosen": chosen["name"], "results": report}, indent=1))
+    return chosen["name"]
 
 
 def fetch_chunk(client, area, business_type, c_start, c_end):
-    """-> DataFrame or None (nothing published). Raises if every request variant is rejected."""
+    """-> DataFrame or None (nothing published). Raises when ENTSO-E rejects the request."""
     area_obj = lookup_area(area)
-    errors = []
-    for i, params in enumerate(request_variants(area_obj.code, business_type)):
-        for attempt in range(3):
-            try:
-                content = client._base_request(params=dict(params), start=c_start, end=c_end).content
-                df = parse(content, area_obj.tz).tz_convert(area_obj.tz)
-                variant_used[business_type] = i
-                if "businessType" not in params:  # response holds all products: keep the one asked for
-                    df = df.loc[:, [c for c in df.columns if c[0] == BSNTYPE[business_type]]]
-                return df if len(df.columns) and len(df) else None
-            except Exception as exc:
-                name = type(exc).__name__
-                if name == "NoMatchingDataError":
-                    return None
-                detail = getattr(getattr(exc, "response", None), "text", "") or ""
-                msg = f"{name}: {exc}"[:90] + (f" | {' '.join(detail.split())[:240]}" if detail else "")
-                if name in NO_DATA_ERRORS or "400" in str(exc):
-                    errors.append(f"variant {i}: {msg}")
-                    break  # this variant is rejected: try the next one
-                time.sleep(5 * (attempt + 1))
-                errors.append(f"variant {i}: {msg}")
-    raise RuntimeError(f"{area}/{business_type}: " + " || ".join(errors[-3:]))
+    params = CANDIDATES[chosen["name"]](area_obj.code, business_type)
+    for attempt in range(3):
+        try:
+            content = request(client, params, c_start, c_end)
+            df = parse(content, area_obj.tz).tz_convert(area_obj.tz)
+            if "businessType" not in params:  # response holds all products: keep the one asked for
+                df = df.loc[:, [c for c in df.columns if c[0] == BSNTYPE[business_type]]]
+            return df if len(df.columns) and len(df) else None
+        except Exception as exc:
+            name = type(exc).__name__
+            if name == "NoMatchingDataError" or name in NO_DATA_ERRORS:
+                return None  # nothing published / combination does not exist for this area
+            if "400" in str(exc):
+                raise RuntimeError(f"{area}/{business_type}: {reason_text(exc)}")
+            time.sleep(5 * (attempt + 1))
+    raise RuntimeError(f"{area}/{business_type}: retries exhausted")
 
 
 def query(client, area, business_type, start):
@@ -165,15 +205,20 @@ def fetch_zone(zone):
         return zone, "error", None, {"error": f"{type(exc).__name__}: {exc}"[:200]}
 
 
+stamp = pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%MZ")
+print("Probing which ENTSO-E request form is accepted ...", flush=True)
+if probe() is None:
+    print("ENTSO-E rejected every request form - see data/regulation_probe.json for its reasons.")
+    sys.exit(1)
+print(f"Using request form: {chosen['name']}", flush=True)
 print(f"Fetching regulation volumes for {len(order)} zones with {WORKERS} workers", flush=True)
 frames, failed = [], {"no_data": [], "error": [], "skipped": []}
-stamp = pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%MZ")
 with ThreadPoolExecutor(max_workers=WORKERS) as pool:
     for zone, st, out, info in pool.map(fetch_zone, order):
         if st == "skipped":
             failed[st].append(zone)
             continue
-        status[zone] = {"status": st, "checked": stamp, "variant": dict(variant_used), **(info or {})}
+        status[zone] = {"status": st, "checked": stamp, **(info or {})}
         if st != "ok":
             failed[st].append(zone)
             continue
