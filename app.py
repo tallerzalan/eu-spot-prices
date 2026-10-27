@@ -220,7 +220,7 @@ else:
     value = day_df[day_df["slot"] == hour].set_index("zone")["price_eur_mwh"]
     map_title = f"Price at {hour} - {day:%a %d %b %Y}"
 
-tab_map, tab_matrix, tab_imb = st.tabs(["Map", "Matrix by region", "Imbalance"])
+tab_map, tab_matrix, tab_imb, tab_reg = st.tabs(["Map", "Matrix by region", "Imbalance", "Regulation"])
 
 # ---------------------------------------------------------------- map tab
 st.session_state.setdefault("zones_sel", ["DK_1"])
@@ -621,3 +621,205 @@ with tab_imb:
         st.download_button("Download imbalance data for these zones (CSV)",
                            zsub.drop(columns=["date", "hour"]).to_csv(index=False).encode(),
                            file_name="imbalance_selected.csv", mime="text/csv")
+
+
+# ---------------------------------------------------------------- regulation tab
+REG_PRODUCTS = {"aFRR": "afrr", "mFRR": "mfrr", "RR": "rr"}
+REG_HELP = """
+**Regulation** is the balancing energy the TSO actually activates to keep the grid in balance, after the
+day-ahead and intraday markets have closed. It is the physical counterpart of the imbalance price.
+
+- **Upregulation (green, bull)** - the system is short: reserves inject more power or consumers cut demand.
+- **Downregulation (red, bear)** - the system is long: reserves inject less power or consumers use more.
+- **Net regulation** = upregulation minus downregulation. Positive (green) = the TSO mostly had to add power.
+- **aFRR** - automatic frequency restoration reserve, activated every few seconds by the TSO's controller
+  (the fast, continuous regulation). **mFRR** - manual frequency restoration reserve, activated on request in
+  larger steps. **RR** - replacement reserve, slow, used in a few countries only. FCR (frequency containment) is
+  not part of this ENTSO-E data set.
+
+Volumes are MWh of activated energy per period (hourly view: summed per hour, which equals the average MW).
+Not every country publishes every product and some publish with a delay or in hourly steps (those are spread over
+the quarters in the 15-minute view). Germany is the sum of its four control areas.
+"""
+REG_UP = {"afrr": "#1b7a34", "mfrr": "#51cf66", "rr": "#b2f2bb"}
+REG_DOWN = {"afrr": "#a61e1e", "mfrr": "#ff6b6b", "rr": "#ffc9c9"}
+
+
+@st.cache_data(show_spinner=False)
+def load_regulation(mtime: float, gran_key: str) -> pd.DataFrame:
+    df = pd.read_csv(DATA / "regulation_15min.csv", parse_dates=["time"])
+    df["time"] = pd.to_datetime(df["time"], utc=True)
+    if gran_key == "Hourly":
+        value_cols = [c for c in df.columns if c not in ("zone", "time")]
+        df = (df.set_index("time").groupby("zone")[value_cols].resample("h").sum(min_count=1)
+                .dropna(how="all").reset_index())
+    df["time"] = df["time"].dt.tz_convert(MARKET_TZ)
+    df["date"] = df["time"].dt.date
+    df["hour"] = df["time"].dt.hour
+    df["slot_i"] = df["time"].dt.hour * 4 + df["time"].dt.minute // 15
+    return df.sort_values(["zone", "time"])
+
+
+def reg_totals(d: pd.DataFrame, prods: list) -> pd.DataFrame:
+    """Add up / down / net columns (MWh per period) for the chosen reserve products."""
+    d = d.copy()
+    d["up"] = d[[f"{p}_up" for p in prods]].sum(axis=1, min_count=1)
+    d["down"] = d[[f"{p}_down" for p in prods]].sum(axis=1, min_count=1)
+    d["net"] = d["up"].fillna(0) - d["down"].fillna(0)
+    d.loc[d["up"].isna() & d["down"].isna(), "net"] = np.nan
+    return d
+
+
+def _share(u, dn):
+    return 100 * u / (u + dn) if pd.notna(u) and pd.notna(dn) and (u + dn) > 0 else np.nan
+
+
+with tab_reg:
+    reg_path = DATA / "regulation_15min.csv"
+    if not reg_path.exists():
+        st.info("No regulation data yet. It is fetched by scripts/fetch_regulation.py "
+                "(the scheduled workflow runs it with the other data) - run the workflow once to create it.")
+    else:
+        reg = load_regulation(reg_path.stat().st_mtime, gran)
+        ravail = [z for z in ZONE_CODES if z in set(reg["zone"])]
+        r_status = {}
+        if (DATA / "regulation_status.json").exists():
+            r_status = json.loads((DATA / "regulation_status.json").read_text())
+
+        c1, c2, c3 = st.columns([2, 2, 1])
+        rdefault = next((z for z in ["DE_LU", "FR", "NL", "BE", "DK_1"] if z in ravail), ravail[0])
+        with c1:
+            rzone = st.selectbox("Zone", ravail, index=ravail.index(rdefault), format_func=label, key="reg_zone")
+        with c2:
+            rprods = st.multiselect("Reserve products", list(REG_PRODUCTS), default=list(REG_PRODUCTS), key="reg_prods")
+        with c3:
+            rdays = st.select_slider("Past days", [7, 14, 21, 30], value=30, key="reg_days")
+        with st.expander("How to read this"):
+            st.markdown(REG_HELP)
+
+        pkeys = [REG_PRODUCTS[p] for p in rprods]
+        if not pkeys:
+            st.info("Pick at least one reserve product.")
+        else:
+            rlast = reg["date"].max()
+            rwin = reg[reg["date"] > rlast - pd.Timedelta(days=rdays)]
+            rd = reg_totals(rwin[rwin["zone"] == rzone], pkeys)
+            have_prods = [p for p in rprods
+                          if rd[[f"{REG_PRODUCTS[p]}_up", f"{REG_PRODUCTS[p]}_down"]].notna().any().any()]
+            st.caption(f"{label(rzone)} · {rwin['date'].min():%d %b} - {rlast:%d %b %Y} (market time) · "
+                       f"{len(ravail)} zones publish regulation volumes · products with data here: "
+                       f"{', '.join(have_prods) or 'none'}")
+
+            # ---- hero: period x day heatmap
+            r_metrics = {"Net regulation (up - down)": "net", "Upregulation": "up", "Downregulation": "down"}
+            rm_name = st.radio("Show", list(r_metrics), horizontal=True, key="reg_metric")
+            rcol = r_metrics[rm_name]
+            st.subheader(f"{rzone}: {rm_name.split(' (')[0].lower()} by {PER} and day")
+            if rd[rcol].notna().sum() == 0:
+                st.info(f"{rzone} has no regulation data for these products in this period.")
+            else:
+                hp = rd.pivot_table(index="slot_i" if QH else "hour", columns="date", values=rcol,
+                                    aggfunc="mean").reindex(range(NP))
+                newest_first = sorted(hp.columns, reverse=True)
+                hp = hp[newest_first]
+                lo, hi = np.nanpercentile(rd[rcol].dropna(), [2, 98])
+                if rcol == "net":
+                    m = float(max(abs(lo), abs(hi))) or 1.0
+                    scale = dict(colorscale="RdYlGn", zmin=-m, zmax=m, zmid=0)
+                else:
+                    scale = dict(colorscale="Greens" if rcol == "up" else "Reds", zmin=0, zmax=float(max(hi, 1e-6)))
+                hm = go.Figure(go.Heatmap(
+                    z=hp.to_numpy(), x=[d.strftime("%a %d %b") for d in newest_first],
+                    y=[hour_label(h) for h in range(NP)], xgap=1, ygap=1, texttemplate="%{z:.0f}",
+                    textfont=dict(size=8 if QH else 9), colorbar=dict(title="MWh", thickness=14),
+                    hovertemplate="%{x}, %{y}: %{z:.1f} MWh<extra></extra>", **scale,
+                ))
+                hm.update_yaxes(autorange="reversed", type="category")
+                hm.update_xaxes(type="category", side="top", tickangle=-90)
+                hm.update_layout(height=190 + (20 if QH else 25) * NP, margin=dict(l=0, r=0, t=10, b=0))
+                st.plotly_chart(hm, key="reg_hm")
+
+            # ---- stacked volumes over time and by period of the day
+            def reg_bars(x, frame):
+                f = go.Figure()
+                for p in rprods:
+                    key = REG_PRODUCTS[p]
+                    f.add_trace(go.Bar(x=x, y=frame[f"{key}_up"], name=f"{p} up", marker_color=REG_UP[key]))
+                for p in rprods:
+                    key = REG_PRODUCTS[p]
+                    f.add_trace(go.Bar(x=x, y=-frame[f"{key}_down"], name=f"{p} down", marker_color=REG_DOWN[key]))
+                f.add_trace(go.Scatter(x=x, y=frame["net"], name="Net", mode="lines",
+                                       line=dict(color="#1c1c1c", width=1.4)))
+                f.update_layout(barmode="relative", height=430, margin=dict(l=0, r=0, t=10, b=0),
+                                yaxis_title="MWh", hovermode="x unified", legend=dict(orientation="h", y=1.12),
+                                bargap=0)
+                return f
+
+            left, right = st.columns(2, gap="large")
+            with left:
+                st.markdown("**Over time** (up above zero, down below)")
+                st.plotly_chart(reg_bars(rd["time"], rd), key="reg_t")
+            with right:
+                st.markdown(f"**Average by {PER} of the day**")
+                vcols = [c for c in rd.columns if c.endswith(("_up", "_down"))] + ["net"]
+                g = rd.groupby("slot_i" if QH else "hour")[vcols].mean().reindex(range(NP))
+                fh = reg_bars([hour_label(h) for h in g.index], g)
+                fh.update_xaxes(type="category", tickangle=-60)
+                st.plotly_chart(fh, key="reg_h")
+
+            # ---- products and totals
+            st.markdown(f"**{rzone} by product** (average MWh per {PER})")
+            rz = rd.assign(zone=rzone)
+            ptab = pd.DataFrame({
+                "Upregulation": product_means(rz, "up").loc[rzone],
+                "Downregulation": product_means(rz, "down").loc[rzone],
+                "Net": product_means(rz, "net").loc[rzone],
+            }).T
+            st.dataframe(ptab, column_config={c: st.column_config.NumberColumn(format="%.1f") for c in PRODUCTS})
+            st.caption(PRODUCT_HELP)
+
+            tot = []
+            for p in rprods:
+                key = REG_PRODUCTS[p]
+                u, dn = rd[f"{key}_up"].sum(min_count=1), rd[f"{key}_down"].sum(min_count=1)
+                tot.append({"Product": p, "Upregulation (MWh)": u, "Downregulation (MWh)": dn,
+                            "Net (MWh)": (0 if pd.isna(u) else u) - (0 if pd.isna(dn) else dn),
+                            "Up share (%)": _share(u, dn)})
+            st.markdown("**Totals over the period**")
+            st.dataframe(pd.DataFrame(tot).set_index("Product"), column_config={
+                c: st.column_config.NumberColumn(format="%.0f") for c in
+                ["Upregulation (MWh)", "Downregulation (MWh)", "Net (MWh)", "Up share (%)"]})
+
+            # ---- compare all zones
+            st.subheader("All zones")
+            zrows = []
+            for z, g in rwin.groupby("zone"):
+                gz = reg_totals(g, pkeys)
+                u, dn = gz["up"].sum(min_count=1), gz["down"].sum(min_count=1)
+                n_days = gz["date"].nunique()
+                zrows.append({"Zone": z, "Name": ZONE_NAME[z], "Region": ZONE_REGION[z],
+                              "Up (MWh/day)": u / n_days if pd.notna(u) else np.nan,
+                              "Down (MWh/day)": dn / n_days if pd.notna(dn) else np.nan,
+                              "Net (MWh/day)": ((0 if pd.isna(u) else u) - (0 if pd.isna(dn) else dn)) / n_days,
+                              "Up share (%)": _share(u, dn), "Days with data": n_days})
+            if zrows:
+                zt = pd.DataFrame(zrows).set_index("Zone").sort_values("Up (MWh/day)", ascending=False)
+                bar = go.Figure([
+                    go.Bar(x=zt.index, y=zt["Up (MWh/day)"], name="Upregulation", marker_color="#2f9e44"),
+                    go.Bar(x=zt.index, y=-zt["Down (MWh/day)"], name="Downregulation", marker_color="#e03131"),
+                ])
+                bar.update_layout(barmode="relative", height=360, margin=dict(l=0, r=0, t=10, b=0),
+                                  yaxis_title="MWh per day", legend=dict(orientation="h", y=1.1))
+                st.plotly_chart(bar, key="reg_all")
+                st.dataframe(zt, column_config={c: st.column_config.NumberColumn(format="%.0f") for c in
+                                                ["Up (MWh/day)", "Down (MWh/day)", "Net (MWh/day)", "Up share (%)"]})
+            st.download_button("Download regulation data for this zone (CSV)",
+                               rd.drop(columns=["date", "hour", "slot_i"]).to_csv(index=False).encode(),
+                               file_name=f"regulation_{rzone}.csv", mime="text/csv")
+
+        if r_status:
+            with st.expander("Data coverage per zone"):
+                cov = pd.DataFrame([{"Zone": z, "Status": v.get("status"), "Rows": v.get("rows"),
+                                     "Series seen": ", ".join(v.get("columns", [])), "Checked": v.get("checked")}
+                                    for z, v in r_status.items()]).set_index("Zone")
+                st.dataframe(cov)

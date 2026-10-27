@@ -16,6 +16,12 @@ fed by the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) thro
   zone comparison and a summary. The *imbalance price* is the price in the direction the system was out of
   balance (short price when in deficit, long price when in surplus); *premium* = imbalance price - spot.
 
+- **Regulation tab** - the balancing energy the TSOs actually activated (ENTSO-E "Activated Balancing Energy"),
+  split into aFRR, mFRR and RR and into up- and downregulation (green / red). Per zone: period x day heatmap
+  of net, up or down regulation, stacked volumes over time and by time of day, products and totals, plus a
+  comparison of all zones. `scripts/fetch_regulation.py` writes `data/regulation_15min.csv` (30 days) and
+  `data/regulation_status.json` (what each zone returned).
+
 **Granularity** - the toggle at the top of the sidebar switches the whole dashboard between hourly means and
 15-minute values (map, tables, matrix and imbalance tab). 15-minute data is kept for 30 days in
 `data/prices_15min.csv` and `data/imbalance_15min.csv`; the first workflow runs after this feature backfill it.

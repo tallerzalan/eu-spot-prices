@@ -19,7 +19,7 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - name: Check market-time window
         id: gate
@@ -62,6 +62,13 @@ jobs:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: python scripts/fetch_imbalance.py
 
+      - name: Fetch regulation volumes (activated balancing energy)
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true # never let regulation problems block the other data
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: python scripts/fetch_regulation.py
+
       - name: Fetch ECB exchange rates
         if: steps.gate.outputs.run == 'true'
         continue-on-error: true # imbalance prices in CZK/PLN/RON are converted to EUR with these
@@ -77,5 +84,10 @@ jobs:
             echo "No new prices."
           else
             git commit -m "Update spot prices $(date -u +'%Y-%m-%d %H:%M') UTC"
-            git push
+            # someone may have pushed while this job was fetching: rebase onto it and retry
+            for i in 1 2 3 4; do
+              git pull --rebase -q origin main && git push && exit 0
+              sleep $((i * 5))
+            done
+            echo "push failed after retries"; exit 1
           fi
