@@ -16,6 +16,10 @@ fed by the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) thro
   zone comparison and a summary. The *imbalance price* is the price in the direction the system was out of
   balance (short price when in deficit, long price when in surplus); *premium* = imbalance price - spot.
 
+**Granularity** - the toggle at the top of the sidebar switches the whole dashboard between hourly means and
+15-minute values (map, tables, matrix and imbalance tab). 15-minute data is kept for 30 days in
+`data/prices_15min.csv` and `data/imbalance_15min.csv`; the first workflow runs after this feature backfill it.
+
 ## How it works
 
 ```
