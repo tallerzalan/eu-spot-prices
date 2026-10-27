@@ -1,0 +1,232 @@
+{
+ "AL": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: AL/A96: retries exhausted"
+ },
+ "AT": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: AT/A96: retries exhausted"
+ },
+ "BE": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: BE/A96: retries exhausted"
+ },
+ "BG": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: BG/A96: retries exhausted"
+ },
+ "CH": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: CH/A96: retries exhausted"
+ },
+ "CZ": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: CZ/A96: retries exhausted"
+ },
+ "DE_LU": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: DE_50HZ/A96: retries exhausted"
+ },
+ "DK_1": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: DK_1/A96: retries exhausted"
+ },
+ "DK_2": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: DK_2/A96: retries exhausted"
+ },
+ "EE": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: EE/A96: retries exhausted"
+ },
+ "ES": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: ES/A96: retries exhausted"
+ },
+ "FI": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: FI/A96: retries exhausted"
+ },
+ "FR": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: FR/A96: retries exhausted"
+ },
+ "GR": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: GR/A96: retries exhausted"
+ },
+ "HR": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: HR/A96: retries exhausted"
+ },
+ "HU": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: HU/A96: retries exhausted"
+ },
+ "IE_SEM": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: IE_SEM/A96: retries exhausted"
+ },
+ "IT_CALA": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: IT_CALA/A96: retries exhausted"
+ },
+ "IT_CNOR": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: IT_CNOR/A96: retries exhausted"
+ },
+ "IT_CSUD": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: IT_CSUD/A96: retries exhausted"
+ },
+ "IT_NORD": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: IT_NORD/A96: retries exhausted"
+ },
+ "IT_SARD": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: IT_SARD/A96: retries exhausted"
+ },
+ "IT_SICI": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: IT_SICI/A96: retries exhausted"
+ },
+ "IT_SUD": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: IT_SUD/A96: retries exhausted"
+ },
+ "LT": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: LT/A96: retries exhausted"
+ },
+ "LV": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: LV/A96: retries exhausted"
+ },
+ "MD": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: MD/A96: retries exhausted"
+ },
+ "ME": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: ME/A96: retries exhausted"
+ },
+ "MK": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: MK/A96: retries exhausted"
+ },
+ "NL": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: NL/A96: retries exhausted"
+ },
+ "NO_1": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: NO_1/A96: retries exhausted"
+ },
+ "NO_2": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: NO_2/A96: retries exhausted"
+ },
+ "NO_3": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: NO_3/A96: retries exhausted"
+ },
+ "NO_4": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: NO_4/A96: retries exhausted"
+ },
+ "NO_5": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: NO_5/A96: retries exhausted"
+ },
+ "PL": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: PL/A96: retries exhausted"
+ },
+ "PT": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: PT/A96: retries exhausted"
+ },
+ "RO": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: RO/A96: retries exhausted"
+ },
+ "RS": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: RS/A96: retries exhausted"
+ },
+ "SE_1": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: SE_1/A96: retries exhausted"
+ },
+ "SE_2": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: SE_2/A96: retries exhausted"
+ },
+ "SE_3": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: SE_3/A96: retries exhausted"
+ },
+ "SE_4": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: SE_4/A96: retries exhausted"
+ },
+ "SI": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: SI/A96: retries exhausted"
+ },
+ "SK": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: SK/A96: retries exhausted"
+ },
+ "XK": {
+  "status": "error",
+  "checked": "2026-10-27T12:56Z",
+  "error": "RuntimeError: XK/A96: retries exhausted"
+ }
+}
