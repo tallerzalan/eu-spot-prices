@@ -46,6 +46,7 @@ def product_means(df: pd.DataFrame, col: str = "price_eur_mwh") -> pd.DataFrame:
 
 st.set_page_config(page_title="European spot prices", page_icon=":zap:", layout="wide")
 
+LEGACY_CURRENCY = {"HU": ("HUF", "2026-10-01")}  # zone: (currency used before the switch date, switch date)
 MAP_PROJECTION = "equirectangular"  # stretches Europe to fill the page width; "natural earth" is less distorted
 MAP_LON, MAP_LAT = [-10.5, 31.5], [35.5, 71.5]  # zoom: just the zones, no Russia / Africa / Turkey
 MAP_HEIGHT = 900
@@ -74,9 +75,24 @@ PER = "15-minute period" if QH else "hour"
 PRICES_FILE, IMB_FILE = FILES[gran]
 
 
+def _hhmm(minutes: int) -> str:
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
 def hour_label(i: int) -> str:
-    """Label of delivery period i (0-based) within the day: hour 1 = 00:00-01:00, quarter 1 = 00:00-00:15."""
-    return f"{i + 1} ({i // 4:02d}:{i % 4 * 15:02d})" if QH else f"{i + 1} ({i:02d}:00)"
+    """Product name of delivery period i (0-based) within the day, e.g. H1Q2 00:15-00:30 or H13 12:00-13:00.
+
+    H1 = first delivery hour (00:00-01:00); Q1-Q4 = the quarters inside that hour.
+    """
+    if QH:
+        return f"H{i // 4 + 1}Q{i % 4 + 1} {_hhmm(i * 15)}-{_hhmm(i * 15 + 15)}"
+    return f"H{i + 1} {_hhmm(i * 60)}-{_hhmm(i * 60 + 60)}"
+
+
+def slot_label(slot: str) -> str:
+    """hour_label for a 'HH:MM' slot string of the price data (keeps the ' (2)' of the repeated DST hour)."""
+    i = (int(slot[:2]) * 60 + int(slot[3:5])) // (15 if QH else 60)
+    return hour_label(i) + (" (2)" if slot.endswith("(2)") else "")
 
 
 def period_index(t: pd.Series) -> pd.Series:
@@ -140,6 +156,11 @@ def load_imbalance(mtime: float, spot_mtime: float, imb_file: str, prices_file: 
             continue
         m = df["zone"] == z
         rate[m] = day[m].map(fx[c]) if c in fx.columns else np.nan
+    # Hungary quoted imbalance prices in HUF until 30 Sep 2026 and in EUR from 1 Oct 2026 (tagged EUR today)
+    for z, (old_cur, switch) in LEGACY_CURRENCY.items():
+        m = (df["zone"] == z) & (day < pd.Timestamp(switch))
+        if old_cur in fx.columns:
+            rate[m] = day[m].map(fx[old_cur])
     for c in ("price_long", "price_short"):
         df[c] = df[c] / rate
 
@@ -327,7 +348,7 @@ with tab_matrix:
         st.info("Pick at least one region.")
     else:
         wide = day_df.pivot(index="zone", columns="slot", values="price_eur_mwh").reindex(columns=slots)
-        ylabels = [f"{i + 1} ({s})" for i, s in enumerate(slots)]  # period 1..24 (or 1..96) downwards
+        ylabels = [slot_label(sl) for sl in slots]  # H1..H24 (or H1Q1..H24Q4) downwards
 
         zstats = day_stats.reindex([z for r in regions for z in codes_by_region[r]])
         zstats.insert(0, "Region", [ZONE_REGION[z] for z in zstats.index])
@@ -349,19 +370,19 @@ with tab_matrix:
             fig.add_trace(go.Heatmap(
                 z=block.to_numpy(), x=list(block.columns), y=ylabels, coloraxis="coloraxis",
                 text=[[ZONE_NAME[z] for z in block.columns] for _ in ylabels],
-                texttemplate="%{z:.0f}", textfont=dict(size=8 if QH else 10), xgap=1, ygap=1,
-                hovertemplate="<b>%{x}</b> %{text}<br>period %{y}: %{z:.2f} EUR/MWh<extra></extra>",
+                texttemplate="%{z:.0f}", textfont=dict(size=9 if QH else 10), xgap=1, ygap=1,
+                hovertemplate="<b>%{x}</b> %{text}<br>%{y}: %{z:.2f} EUR/MWh<extra></extra>",
             ), row=1, col=i)
             fig.update_xaxes(title_text=f"<b>{r}</b>", side="top", type="category", tickangle=-90,
                              row=1, col=i)
         fig.update_yaxes(autorange="reversed", type="category", categoryorder="array", categoryarray=ylabels)
         fig.update_layout(
-            height=190 + (13 if QH else 27) * len(slots), margin=dict(l=10, r=10, t=10, b=10),
+            height=190 + (20 if QH else 27) * len(slots), margin=dict(l=10, r=10, t=10, b=10),
             coloraxis=dict(colorscale=COLORSCALE, cmin=zmin, cmax=zmax,
                            colorbar=dict(title="EUR/MWh", thickness=14)),
         )
         st.plotly_chart(fig, key="matrix")
-        st.caption("Cells show EUR/MWh. Rows are delivery periods (hour 1 = 00:00-01:00 or quarter 1 = 00:00-00:15, market time), "
+        st.caption("Cells show EUR/MWh. Rows are delivery products (H1 = 00:00-01:00, H1Q1 = 00:00-00:15, market time), "
                    "columns are zones grouped by region. Colour scale is shared; blank = not published.")
         with st.expander("Raw matrix"):
             order = [z for r in regions for z in codes_by_region[r]]
@@ -380,8 +401,10 @@ IMB_METRICS = {
     "Downregulation price (system long)": "price_long",
 }
 IMB_HELP = """
-**Colours:** green = bull, red = bear. Premium above spot is green, below spot is red. Upregulation is green,
-downregulation is red.
+**Colours:** green = bull, red = bear. A high imbalance price is green, a low or negative one red. Premium above
+spot is green, below spot is red. Upregulation is green, downregulation is red. Rows are named by product:
+H13 = 12:00-13:00, H13Q2 = 12:15-12:30. Hungary quoted HUF until 30 Sep 2026 and EUR from 1 Oct; the earlier days
+are converted at the ECB rate.
 
 **Imbalance** - the grid is in balance when the electricity produced equals the electricity consumed in real time.
 When it does not, the grid operator (TSO) settles the difference at an *imbalance price*.
@@ -441,13 +464,13 @@ BULL, BEAR = "#2f9e44", "#e03131"  # green = bull (above spot / upregulation), r
 def color_args(col: str, series: pd.Series) -> dict:
     v = series.dropna()
     if v.empty:
-        return dict(colorscale="Blues")
+        return dict(colorscale="RdYlGn")
     lo, hi = np.nanpercentile(v, [2, 98])
     if col in ("volume_mwh", "premium"):
         m = float(max(abs(lo), abs(hi))) or 1.0
         # premium: green above spot, red below. volume: surplus (+) = downregulation = red, deficit (-) = green
         return dict(colorscale="RdYlGn" if col == "premium" else "RdYlGn_r", zmin=-m, zmax=m, zmid=0)
-    return dict(colorscale="Blues", zmin=float(lo), zmax=float(hi))  # price level: neutral, green/red mean direction
+    return dict(colorscale="RdYlGn", zmin=float(lo), zmax=float(hi))  # high price = green (bull), low = red (bear)
 
 
 def spot_vs_imbalance(x, spot, imbp, prem, height=470):
@@ -509,13 +532,13 @@ with tab_imb:
             hp = hp[newest_first]
             hm = go.Figure(go.Heatmap(
                 z=hp.to_numpy(), x=[d.strftime("%a %d %b") for d in newest_first], y=[hour_label(h) for h in range(NP)],
-                xgap=1, ygap=1, texttemplate="%{z:.0f}", textfont=dict(size=7 if QH else 9),
+                xgap=1, ygap=1, texttemplate="%{z:.0f}", textfont=dict(size=8 if QH else 9),
                 colorbar=dict(title=unit, thickness=14),
-                hovertemplate="%{x}, period %{y}: %{z:.2f}<extra></extra>", **color_args(col, zd[col]),
+                hovertemplate="%{x}, %{y}: %{z:.2f}<extra></extra>", **color_args(col, zd[col]),
             ))
             hm.update_yaxes(autorange="reversed", type="category")
             hm.update_xaxes(type="category", side="top", tickangle=-90)
-            hm.update_layout(height=190 + (12 if QH else 25) * NP, margin=dict(l=0, r=0, t=10, b=0))
+            hm.update_layout(height=190 + (20 if QH else 25) * NP, margin=dict(l=0, r=0, t=10, b=0))
             st.plotly_chart(hm, key="imb_hm")
 
         # ---- spot -> imbalance premium
