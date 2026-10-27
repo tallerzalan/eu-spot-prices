@@ -83,21 +83,27 @@ def parse(content, tz):
 # data/regulation_probe.json) and uses the first one that is accepted.
 PROCESS_TYPES = {"A96": "A51", "A97": "A47", "A98": "A46"}  # aFRR / mFRR / RR process types
 CHUNK_DAYS = 7  # keep every response well below ENTSO-E's document limit
-CANDIDATES = {
-    "A16+businessType": lambda a, b: {"controlArea_Domain": a, "processType": "A16", "businessType": b},
-    "A16": lambda a, b: {"controlArea_Domain": a, "processType": "A16"},
-    "businessType": lambda a, b: {"controlArea_Domain": a, "businessType": b},
-    "none": lambda a, b: {"controlArea_Domain": a},
-    "productProcess": lambda a, b: {"controlArea_Domain": a, "processType": PROCESS_TYPES[b]},
-    "A16+businessType+standardProduct": lambda a, b: {"controlArea_Domain": a, "processType": "A16",
-                                                      "businessType": b, "standardMarketProduct": "A01"},
-    "A16+standardProduct": lambda a, b: {"controlArea_Domain": a, "processType": "A16",
-                                         "standardMarketProduct": "A01"},
-    "A16+businessType+originalProduct": lambda a, b: {"controlArea_Domain": a, "processType": "A16",
-                                                      "businessType": b, "originalMarketProduct": "A01"},
-    "A16+businessType+area_Domain": lambda a, b: {"area_Domain": a, "processType": "A16", "businessType": b},
-}
-chosen = {"name": None}
+# ENTSO-E answers "combination is not valid" for the obvious A83 forms (A16 / businessType), so the probe walks
+# through the process types of the balancing code list, with and without the business type.
+PROBE_PROCESS = ["A16", None, "A60", "A61", "A67", "A68", "A52", "A56", "A01"]  # None = the product's own type
+chosen = {}  # business type -> request parameters (without the area)
+
+
+def candidates(business_type):
+    for pt in PROBE_PROCESS:
+        pt = pt or PROCESS_TYPES[business_type]
+        for with_bt in (True, False):
+            params = {"processType": pt}
+            if with_bt:
+                params["businessType"] = business_type
+            yield f"{pt}{'+' + business_type if with_bt else ''}", params
+    # market-product filters, in the spelling of the ENTSO-E user guide
+    for pt in ("A16", PROCESS_TYPES[business_type]):
+        for with_bt in (True, False):
+            params = {"processType": pt, "Standard_MarketProduct": "A01", "Original_MarketProduct": "A01"}
+            if with_bt:
+                params["businessType"] = business_type
+            yield f"{pt}{'+' + business_type if with_bt else ''}+marketProduct", params
 
 
 def reason_text(exc):
@@ -107,43 +113,51 @@ def reason_text(exc):
     return " ".join((m.group(1) if m else body or str(exc)).split())[:300]
 
 
-def request(client, params, c_start, c_end):
-    return client._base_request(params={"documentType": "A83", **params}, start=c_start, end=c_end).content
+def request(client, params, area_code, c_start, c_end, document_type="A83"):
+    full = {"documentType": document_type, "controlArea_Domain": area_code, **params}
+    return client._base_request(params=full, start=c_start, end=c_end).content
 
 
 def probe():
-    """Try every candidate on FR (then BE) for one day; remember the first one ENTSO-E accepts."""
+    """Find, per reserve product, a request form ENTSO-E accepts. Everything it says is logged and saved."""
     client = EntsoeRawClient(api_key=API_KEY, timeout=60, retry_count=1, retry_delay=3)
     p_start, p_end = today - pd.Timedelta(days=3), today - pd.Timedelta(days=1)
     report = {}
-    for zone in ("FR", "BE"):
-        area = lookup_area(zone)
-        for name, build in CANDIDATES.items():
-            key = f"{zone}/{name}"
-            try:
-                content = request(client, build(area.code, "A96"), p_start, p_end)
-                report[key] = f"OK ({len(content)} bytes)"
-            except Exception as exc:
-                if type(exc).__name__ == "NoMatchingDataError":
-                    report[key] = "accepted, no data"
-                else:
-                    report[key] = f"REJECTED: {reason_text(exc)}"
-            print(f"  probe {key}: {report[key]}", flush=True)
-            if not report[key].startswith("REJECTED") and chosen["name"] is None:
-                chosen["name"] = name
-        if chosen["name"]:
-            break
-    PROBE.write_text(json.dumps({"checked": stamp, "chosen": chosen["name"], "results": report}, indent=1))
-    return chosen["name"]
+
+    def attempt(key, params, area_code, doc="A83"):
+        try:
+            content = request(client, params, area_code, p_start, p_end, doc)
+            report[key] = f"OK ({len(content)} bytes)"
+        except Exception as exc:
+            report[key] = ("accepted, no data" if type(exc).__name__ == "NoMatchingDataError"
+                           else f"REJECTED: {reason_text(exc)}")
+        print(f"  probe {key}: {report[key]}", flush=True)
+        return not report[key].startswith("REJECTED")
+
+    fr = lookup_area("FR").code
+    attempt("control A84 prices FR", {"processType": "A16"}, fr, "A84")  # is the balancing data reachable at all?
+    for bt in PRODUCTS:
+        for zone in ("FR", "BE", "DE_50HZ"):
+            code = lookup_area(zone).code
+            for name, params in candidates(bt):
+                if attempt(f"{bt} {zone} {name}", params, code):
+                    chosen[bt] = params
+                    break
+            if bt in chosen:
+                break
+    PROBE.write_text(json.dumps({"checked": stamp, "chosen": chosen, "results": report}, indent=1))
+    return bool(chosen)
 
 
 def fetch_chunk(client, area, business_type, c_start, c_end):
     """-> DataFrame or None (nothing published). Raises when ENTSO-E rejects the request."""
+    if business_type not in chosen:
+        return None  # no accepted request form for this product
     area_obj = lookup_area(area)
-    params = CANDIDATES[chosen["name"]](area_obj.code, business_type)
+    params = chosen[business_type]
     for attempt in range(3):
         try:
-            content = request(client, params, c_start, c_end)
+            content = request(client, params, area_obj.code, c_start, c_end)
             df = parse(content, area_obj.tz).tz_convert(area_obj.tz)
             if "businessType" not in params:  # response holds all products: keep the one asked for
                 df = df.loc[:, [c for c in df.columns if c[0] == BSNTYPE[business_type]]]
@@ -207,10 +221,10 @@ def fetch_zone(zone):
 
 stamp = pd.Timestamp.now(tz="UTC").strftime("%Y-%m-%dT%H:%MZ")
 print("Probing which ENTSO-E request form is accepted ...", flush=True)
-if probe() is None:
+if not probe():
     print("ENTSO-E rejected every request form - see data/regulation_probe.json for its reasons.")
     sys.exit(1)
-print(f"Using request form: {chosen['name']}", flush=True)
+print(f"Using request forms: {chosen}", flush=True)
 print(f"Fetching regulation volumes for {len(order)} zones with {WORKERS} workers", flush=True)
 frames, failed = [], {"no_data": [], "error": [], "skipped": []}
 with ThreadPoolExecutor(max_workers=WORKERS) as pool:
