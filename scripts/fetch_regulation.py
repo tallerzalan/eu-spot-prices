@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pandas as pd
 from entsoe import EntsoeRawClient
-from entsoe.mappings import lookup_area
+from entsoe.mappings import BSNTYPE, lookup_area
 from entsoe.parsers import parse_contracted_reserve, parse_contracted_reserve_zip
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -75,22 +75,62 @@ def parse(content, tz):
     return parse_contracted_reserve(content, tz, "quantity")
 
 
+# ENTSO-E "Activated Balancing Energy" [17.1.E] needs a processType. entsoe-py leaves it out (HTTP 400), so
+# the request is built here. Variants are tried in order; the first one ENTSO-E accepts is used.
+PROCESS_TYPES = {"A96": "A51", "A97": "A47", "A98": "A46"}  # aFRR / mFRR / RR process types
+CHUNK_DAYS = 7  # keep every response well below ENTSO-E's document limit
+variant_used = {}
+
+
+def request_variants(area_code, business_type):
+    base = {"documentType": "A83", "controlArea_Domain": area_code}
+    return [
+        {**base, "processType": "A16", "businessType": business_type},
+        {**base, "processType": "A16"},
+        {**base, "processType": PROCESS_TYPES[business_type]},
+    ]
+
+
+def fetch_chunk(client, area, business_type, c_start, c_end):
+    """-> DataFrame or None (nothing published). Raises if every request variant is rejected."""
+    area_obj = lookup_area(area)
+    errors = []
+    for i, params in enumerate(request_variants(area_obj.code, business_type)):
+        for attempt in range(3):
+            try:
+                content = client._base_request(params=dict(params), start=c_start, end=c_end).content
+                df = parse(content, area_obj.tz).tz_convert(area_obj.tz)
+                variant_used[business_type] = i
+                if "businessType" not in params:  # response holds all products: keep the one asked for
+                    df = df.loc[:, [c for c in df.columns if c[0] == BSNTYPE[business_type]]]
+                return df if len(df.columns) and len(df) else None
+            except Exception as exc:
+                name = type(exc).__name__
+                if name == "NoMatchingDataError":
+                    return None
+                detail = getattr(getattr(exc, "response", None), "text", "") or ""
+                msg = f"{name}: {exc}"[:90] + (f" | {' '.join(detail.split())[:240]}" if detail else "")
+                if name in NO_DATA_ERRORS or "400" in str(exc):
+                    errors.append(f"variant {i}: {msg}")
+                    break  # this variant is rejected: try the next one
+                time.sleep(5 * (attempt + 1))
+                errors.append(f"variant {i}: {msg}")
+    raise RuntimeError(f"{area}/{business_type}: " + " || ".join(errors[-3:]))
+
+
 def query(client, area, business_type, start):
-    """One product for one area -> DataFrame (MultiIndex columns: product name, direction) or None."""
-    last = None
-    for attempt in range(3):
-        try:
-            content = client.query_activated_balancing_energy(area, start=start, end=end, business_type=business_type)
-            tz = lookup_area(area).tz
-            df = parse(content, tz).tz_convert(tz).truncate(before=start, after=end)
-            return df if len(df) else None
-        except Exception as exc:
-            if type(exc).__name__ in NO_DATA_ERRORS:
-                return None
-            last = f"{type(exc).__name__}: {exc}"[:160]
-            print(f"  {area}/{business_type}: {last} (attempt {attempt + 1})", file=sys.stderr, flush=True)
-            time.sleep(5 * (attempt + 1))
-    raise RuntimeError(f"{area}/{business_type}: {last}")
+    """One product for one area over [start, end) -> DataFrame (columns: product name, direction) or None."""
+    frames, chunk_start = [], start
+    while chunk_start < end:
+        chunk_end = min(chunk_start + pd.Timedelta(days=CHUNK_DAYS), end)
+        df = fetch_chunk(client, area, business_type, chunk_start, chunk_end)
+        if df is not None:
+            frames.append(df)
+        chunk_start = chunk_end
+    if not frames:
+        return None
+    df = pd.concat(frames)
+    return df.truncate(before=start, after=end)
 
 
 def fetch_zone(zone):
@@ -133,7 +173,7 @@ with ThreadPoolExecutor(max_workers=WORKERS) as pool:
         if st == "skipped":
             failed[st].append(zone)
             continue
-        status[zone] = {"status": st, "checked": stamp, **(info or {})}
+        status[zone] = {"status": st, "checked": stamp, "variant": dict(variant_used), **(info or {})}
         if st != "ok":
             failed[st].append(zone)
             continue
