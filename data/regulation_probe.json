@@ -1,0 +1,24 @@
+{
+ "checked": "2026-10-27T19:59Z",
+ "chosen": null,
+ "results": {
+  "FR/A16+businessType": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A16, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "FR/A16": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A16] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "FR/businessType": "REJECTED: The combination of [DOCUMENT_TYPE=A83, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "FR/none": "REJECTED: The combination of [DOCUMENT_TYPE=A83] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "FR/productProcess": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A51] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "FR/A16+businessType+standardProduct": "REJECTED: Input parameter does not exist: standardMarketProduct",
+  "FR/A16+standardProduct": "REJECTED: Input parameter does not exist: standardMarketProduct",
+  "FR/A16+businessType+originalProduct": "REJECTED: Input parameter does not exist: originalMarketProduct",
+  "FR/A16+businessType+area_Domain": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A16, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "BE/A16+businessType": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A16, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "BE/A16": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A16] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "BE/businessType": "REJECTED: The combination of [DOCUMENT_TYPE=A83, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "BE/none": "REJECTED: The combination of [DOCUMENT_TYPE=A83] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "BE/productProcess": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A51] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "BE/A16+businessType+standardProduct": "REJECTED: Input parameter does not exist: standardMarketProduct",
+  "BE/A16+standardProduct": "REJECTED: Input parameter does not exist: standardMarketProduct",
+  "BE/A16+businessType+originalProduct": "REJECTED: Input parameter does not exist: originalMarketProduct",
+  "BE/A16+businessType+area_Domain": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A16, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service."
+ }
+}
