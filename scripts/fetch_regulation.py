@@ -83,27 +83,23 @@ def parse(content, tz):
 # data/regulation_probe.json) and uses the first one that is accepted.
 PROCESS_TYPES = {"A96": "A51", "A97": "A47", "A98": "A46"}  # aFRR / mFRR / RR process types
 CHUNK_DAYS = 7  # keep every response well below ENTSO-E's document limit
-# ENTSO-E answers "combination is not valid" for the obvious A83 forms (A16 / businessType), so the probe walks
-# through the process types of the balancing code list, with and without the business type.
-PROBE_PROCESS = ["A16", None, "A60", "A61", "A67", "A68", "A52", "A56", "A01"]  # None = the product's own type
-chosen = {}  # business type -> request parameters (without the area)
+# ENTSO-E has answered "combination is not valid" for every A83 form tried so far (see data/regulation_probe.json),
+# so the probe also tries A82 (accepted aggregated offers, the volumes of the activated offers). It uses few
+# requests: the first accepted form for aFRR is reused for the other products.
+chosen = {}  # business type -> (documentType, request parameters without the area)
 
 
-def candidates(business_type):
-    for pt in PROBE_PROCESS:
-        pt = pt or PROCESS_TYPES[business_type]
-        for with_bt in (True, False):
-            params = {"processType": pt}
-            if with_bt:
-                params["businessType"] = business_type
-            yield f"{pt}{'+' + business_type if with_bt else ''}", params
-    # market-product filters, in the spelling of the ENTSO-E user guide
-    for pt in ("A16", PROCESS_TYPES[business_type]):
-        for with_bt in (True, False):
-            params = {"processType": pt, "Standard_MarketProduct": "A01", "Original_MarketProduct": "A01"}
-            if with_bt:
-                params["businessType"] = business_type
-            yield f"{pt}{'+' + business_type if with_bt else ''}+marketProduct", params
+def candidates():
+    for doc in ("A83", "A82"):
+        for label, params in (("businessType", {"businessType": "{bt}"}),
+                              ("A16+businessType", {"processType": "A16", "businessType": "{bt}"}),
+                              ("A16", {"processType": "A16"}),
+                              ("none", {})):
+            yield doc, label, params
+
+
+def fill(params, bt):
+    return {k: (bt if v == "{bt}" else v) for k, v in params.items()}
 
 
 def reason_text(exc):
@@ -113,20 +109,20 @@ def reason_text(exc):
     return " ".join((m.group(1) if m else body or str(exc)).split())[:300]
 
 
-def request(client, params, area_code, c_start, c_end, document_type="A83"):
-    full = {"documentType": document_type, "controlArea_Domain": area_code, **params}
+def request(client, doc, params, area_code, c_start, c_end):
+    full = {"documentType": doc, "controlArea_Domain": area_code, **params}
     return client._base_request(params=full, start=c_start, end=c_end).content
 
 
 def probe():
-    """Find, per reserve product, a request form ENTSO-E accepts. Everything it says is logged and saved."""
-    client = EntsoeRawClient(api_key=API_KEY, timeout=60, retry_count=1, retry_delay=3)
+    """Find a request form ENTSO-E accepts for activated volumes. Everything it says is logged and saved."""
+    client = EntsoeRawClient(api_key=API_KEY, timeout=30, retry_count=0, retry_delay=1)
     p_start, p_end = today - pd.Timedelta(days=3), today - pd.Timedelta(days=1)
     report = {}
 
-    def attempt(key, params, area_code, doc="A83"):
+    def attempt(key, doc, params, area_code):
         try:
-            content = request(client, params, area_code, p_start, p_end, doc)
+            content = request(client, doc, params, area_code, p_start, p_end)
             report[key] = f"OK ({len(content)} bytes)"
         except Exception as exc:
             report[key] = ("accepted, no data" if type(exc).__name__ == "NoMatchingDataError"
@@ -135,16 +131,15 @@ def probe():
         return not report[key].startswith("REJECTED")
 
     fr = lookup_area("FR").code
-    attempt("control A84 prices FR", {"processType": "A16"}, fr, "A84")  # is the balancing data reachable at all?
-    for bt in PRODUCTS:
-        for zone in ("FR", "BE", "DE_50HZ"):
-            code = lookup_area(zone).code
-            for name, params in candidates(bt):
-                if attempt(f"{bt} {zone} {name}", params, code):
-                    chosen[bt] = params
-                    break
-            if bt in chosen:
-                break
+    attempt("control A84 prices FR", "A84", {"processType": "A16"}, fr)  # is the balancing data reachable at all?
+    found = None
+    for doc, label, params in candidates():
+        if attempt(f"{doc} {label} A96 FR", doc, fill(params, "A96"), fr):
+            found = (doc, params)
+            break
+    if found:
+        for bt in PRODUCTS:
+            chosen[bt] = (found[0], fill(found[1], bt))
     PROBE.write_text(json.dumps({"checked": stamp, "chosen": chosen, "results": report}, indent=1))
     return bool(chosen)
 
@@ -154,10 +149,10 @@ def fetch_chunk(client, area, business_type, c_start, c_end):
     if business_type not in chosen:
         return None  # no accepted request form for this product
     area_obj = lookup_area(area)
-    params = chosen[business_type]
+    doc, params = chosen[business_type]
     for attempt in range(3):
         try:
-            content = request(client, params, area_obj.code, c_start, c_end)
+            content = request(client, doc, params, area_obj.code, c_start, c_end)
             df = parse(content, area_obj.tz).tz_convert(area_obj.tz)
             if "businessType" not in params:  # response holds all products: keep the one asked for
                 df = df.loc[:, [c for c in df.columns if c[0] == BSNTYPE[business_type]]]
