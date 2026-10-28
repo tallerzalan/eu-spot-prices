@@ -116,7 +116,7 @@ def request(client, doc, params, area_code, c_start, c_end):
 
 def probe():
     """Find a request form ENTSO-E accepts for activated volumes. Everything it says is logged and saved."""
-    client = EntsoeRawClient(api_key=API_KEY, timeout=30, retry_count=0, retry_delay=1)
+    client = EntsoeRawClient(api_key=API_KEY, timeout=30, retry_count=1, retry_delay=1)
     p_start, p_end = today - pd.Timedelta(days=3), today - pd.Timedelta(days=1)
     report = {}
 
