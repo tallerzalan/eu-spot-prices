@@ -1,0 +1,64 @@
+name: Update spot prices
+
+on:
+  schedule:
+    # Hourly at :30 UTC, 11:30-15:30. The gate below only lets runs through between 13:00 and 17:59
+    # Europe/Brussels, which handles CET/CEST. The first run of the day lands at 13:30 market time
+    # (right after the spot auction); later runs catch zones that ENTSO-E publishes with a delay.
+    - cron: "30 11-15 * * *"
+  workflow_dispatch: # manual run from the Actions tab, skips the time gate
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-spot
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check market-time window
+        id: gate
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          hour=$(TZ=Europe/Brussels date +%-H)
+          echo "Brussels hour: $hour"
+          if [ "$hour" -ge 13 ] && [ "$hour" -le 17 ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v5
+        if: steps.gate.outputs.run == 'true'
+
+      - uses: actions/setup-python@v6
+        if: steps.gate.outputs.run == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-fetch.txt
+
+      - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
+        run: pip install -r requirements-fetch.txt
+
+      - name: Fetch spot prices
+        if: steps.gate.outputs.run == 'true'
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: python -m pipeline spot
+
+      - name: Fetch ECB exchange rates
+        if: steps.gate.outputs.run == 'true'
+        continue-on-error: true # imbalance prices in CZK/PLN/RON are converted to EUR with these
+        run: python -m pipeline fx
+
+      - name: Commit changes
+        if: steps.gate.outputs.run == 'true'
+        run: bash scripts/commit_data.sh "Update spot prices"

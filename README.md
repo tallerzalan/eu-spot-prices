@@ -16,11 +16,10 @@ fed by the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) thro
   zone comparison and a summary. The *imbalance price* is the price in the direction the system was out of
   balance (short price when in deficit, long price when in surplus); *premium* = imbalance price - spot.
 
-- **Regulation tab** - the balancing energy the TSOs actually activated (ENTSO-E "Activated Balancing Energy"),
-  split into aFRR, mFRR and RR and into up- and downregulation (green / red). Per zone: period x day heatmap
-  of net, up or down regulation, stacked volumes over time and by time of day, products and totals, plus a
-  comparison of all zones. `scripts/fetch_regulation.py` writes `data/regulation_15min.csv` (30 days) and
-  `data/regulation_status.json` (what each zone returned).
+- **Regulation tab** - ENTSO-E does not publish activated balancing energy volumes through its public API, so
+  this tab shows the two things it does publish: the *balancing state* (the TSO's minute-by-minute need for up- or
+  downregulation, MW) and the *available aggregated bids* for aFRR and mFRR (MW). Per zone: period x day heatmap,
+  up/down charts over time and by time of day, products table, bids, and a comparison of all zones.
 
 **Granularity** - the toggle at the top of the sidebar switches the whole dashboard between hourly means and
 15-minute values (map, tables, matrix and imbalance tab). 15-minute data is kept for 30 days in
@@ -29,27 +28,26 @@ fed by the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) thro
 ## How it works
 
 ```
-GitHub Actions (hourly 13:30-17:30 market time)
-   -> scripts/fetch_prices.py     -> data/prices.csv     (committed to the repo)
-   -> scripts/fetch_imbalance.py  -> data/imbalance.csv  + imbalance_currency.json
-                                        |
-                       Streamlit app (app.py) reads the CSV
+GitHub Actions (three workflows)            pipeline/  (python -m pipeline <dataset>)
+  Update spot prices  13:30-17:30 hourly ->   spot        -> data/prices_15min.csv, prices.csv
+  Update imbalance    every hour         ->   imbalance   -> data/imbalance_15min.csv, imbalance.csv, ..._currency.json
+  Update regulation   every hour         ->   regulation  -> data/regulation_15min.csv, regulation_status.json
+  (spot also)                            ->   fx          -> data/fx.csv (ECB reference rates)
+                                                 |
+                              Streamlit app (app.py) reads the CSV files
 ```
 
-- ENTSO-E publishes next-day prices around 13:00 CET, but some zones appear later. The workflow
-  therefore runs several times in the afternoon and commits only when data changed.
-- `prices.csv` holds the last 60 days of hourly spot prices (`zone, time (UTC), price_eur_mwh`).
-- `imbalance.csv` holds 45 days of hourly imbalance data (`zone, time, price_long, price_short, volume_mwh`).
-  Prices are means, volumes are sums; positive volume = surplus, negative = deficit. ENTSO-E quotes imbalance
-  prices in each country's own currency (CZK, PLN, RON); the app converts them to EUR with the ECB daily
-  reference rate (`data/fx.csv`, fetched by `scripts/fetch_fx.py`, no key needed). Nothing is dropped as an
-  outlier. Colours: green = bull (premium above spot, upregulation), red = bear (below spot, downregulation).
-  Not every zone publishes imbalance data.
-- Times in the app are shown in market time (CET/CEST). 15-minute prices are averaged to hours.
-- `zones.py` is the single list of zones, names and market regions.
-- `data/zones.geojson` was built with `scripts/build_geo.py` from Natural Earth (public domain).
-  Sweden/Norway/Denmark/Italy zones are grouped from county/region polygons, so their borders
-  are approximate.
+- `pipeline/base.py` holds what all datasets share (incremental fetch with a one-time backfill, parallel zones,
+  time budget, hourly derivation, merge and retention); each dataset implements `fetch_zone()` only.
+- ENTSO-E publishes next-day prices around 13:00 CET, but some zones appear later. The spot workflow therefore runs
+  hourly in the afternoon and commits only when data changed.
+- Prices are stored at 15-minute resolution (30 days) and as hourly means (60 days spot, 45 days imbalance).
+  Imbalance volumes are sums, positive = surplus, negative = deficit. ENTSO-E quotes imbalance prices in each
+  country's own currency (CZK, PLN, RON); the app converts them to EUR with the ECB daily reference rate. Nothing is
+  dropped as an outlier. Colours: green = bull (premium above spot, upregulation), red = bear.
+- Times in the app are shown in market time (CET/CEST). `zones.py` is the single list of zones and regions.
+- `data/zones.geojson` was built with `scripts/build_geo.py` from Natural Earth (public domain). Sweden/Norway/
+  Denmark/Italy zones are grouped from county/region polygons, so their borders are approximate.
 
 ## Run locally
 
@@ -66,7 +64,7 @@ then email transparency@entsoe.eu to request "Restful API access"):
 ```bash
 pip install -r requirements-fetch.txt
 set ENTSOE_API_KEY=your-token      # macOS/Linux: export ENTSOE_API_KEY=your-token
-python scripts/fetch_prices.py
+python -m pipeline spot
 ```
 
 ## Deploy

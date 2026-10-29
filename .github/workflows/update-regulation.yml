@@ -1,0 +1,38 @@
+name: Update regulation
+
+on:
+  schedule:
+    - cron: "22 * * * *" # hourly; GitHub delays scheduled runs and shortest interval is 5 minutes
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-regulation
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-fetch.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-fetch.txt
+
+      - name: Fetch balancing state and aggregated bids
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: python -m pipeline regulation
+
+      - name: Commit changes
+        if: always()
+        run: bash scripts/commit_data.sh "Update regulation"

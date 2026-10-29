@@ -1,278 +1,436 @@
 {
  "AL": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: AL/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "AT": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: AT/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "BE": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: BE/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "BG": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: BG/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "no_data",
+  "checked": "2026-10-29T07:58Z"
  },
  "CH": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: CH/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "CZ": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: CZ/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "DE_LU": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: DE_50HZ/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocumen"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "DK_1": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: DK_1/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "DK_2": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: DK_2/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "EE": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: EE/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "ES": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: ES/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "FI": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: FI/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "FR": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: FR/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "GR": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: GR/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "HR": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: HR/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "HU": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: HU/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "IE_SEM": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: IE_SEM/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument"
+  "status": "no_data",
+  "checked": "2026-10-29T07:58Z"
  },
  "IT_CALA": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: IT_CALA/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocumen"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw"
+  ]
  },
  "IT_CNOR": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: IT_CNOR/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocumen"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw"
+  ]
  },
  "IT_CSUD": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: IT_CSUD/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocumen"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw"
+  ]
  },
  "IT_NORD": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: IT_NORD/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocumen"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw"
+  ]
  },
  "IT_SARD": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: IT_SARD/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocumen"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw"
+  ]
  },
  "IT_SICI": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: IT_SICI/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocumen"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw"
+  ]
  },
  "IT_SUD": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: IT_SUD/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw"
+  ]
  },
  "LT": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: LT/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "LV": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: LV/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "MD": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: MD/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "no_data",
+  "checked": "2026-10-29T07:58Z"
  },
  "ME": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: ME/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "no_data",
+  "checked": "2026-10-29T07:58Z"
  },
  "MK": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: MK/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "no_data",
+  "checked": "2026-10-29T07:58Z"
  },
  "NL": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: NL/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw"
+  ]
  },
  "NO_1": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: NO_1/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "NO_2": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: NO_2/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "NO_3": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: NO_3/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "NO_4": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: NO_4/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "NO_5": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: NO_5/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "PL": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: PL/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "PT": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: PT/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "RO": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: RO/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "RS": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: RS/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "SE_1": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: SE_1/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "SE_2": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: SE_2/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "SE_3": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: SE_3/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "SE_4": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: SE_4/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument x"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "SI": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: SI/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "state_up_mw",
+   "state_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "SK": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: SK/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "ok",
+  "checked": "2026-10-29T07:58Z",
+  "series": [
+   "afrr_bid_up_mw",
+   "afrr_bid_down_mw",
+   "mfrr_bid_up_mw",
+   "mfrr_bid_down_mw"
+  ]
  },
  "XK": {
-  "status": "error",
-  "checked": "2026-10-27T19:27Z",
-  "variant": {},
-  "error": "RuntimeError: XK/A96: variant 0: HTTPError: 400 Client Error: Bad Request for url: https://web-api.tp.entsoe.eu/api?documen | <?xml version=\"1.0\" encoding=\"UTF-8\"?> <Acknowledgement_MarketDocument xml"
+  "status": "no_data",
+  "checked": "2026-10-29T07:58Z"
  }
 }
