@@ -2,7 +2,9 @@ name: Update regulation
 
 on:
   schedule:
-    - cron: "22 * * * *" # hourly; GitHub delays scheduled runs and shortest interval is 5 minutes
+    # Hourly effect: GitHub drops or delays many scheduled runs, so two attempts per hour (the shortest interval
+    # is 5 minutes). Runs that find nothing new commit nothing.
+    - cron: "17,47 * * * *"
   workflow_dispatch:
 
 permissions:

@@ -2,10 +2,11 @@ name: Update spot prices
 
 on:
   schedule:
-    # Hourly at :30 UTC, 11:30-15:30. The gate below only lets runs through between 13:00 and 17:59
-    # Europe/Brussels, which handles CET/CEST. The first run of the day lands at 13:30 market time
-    # (right after the spot auction); later runs catch zones that ENTSO-E publishes with a delay.
-    - cron: "30 11-15 * * *"
+    # GitHub drops or delays many scheduled runs, so there are several attempts per hour (UTC 11-17). The gate
+    # below only lets runs through between 13:00 and 18:30 Europe/Brussels (handles CET/CEST), and the fetch step
+    # exits at once when tomorrow's prices are already complete, so extra attempts cost nothing.
+    # ENTSO-E has most zones around 13:15 market time; the last ones arrive by about 18:00.
+    - cron: "5,20,35,50 11-17 * * *"
   workflow_dispatch: # manual run from the Actions tab, skips the time gate
 
 permissions:
@@ -27,8 +28,9 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
           hour=$(TZ=Europe/Brussels date +%-H)
-          echo "Brussels hour: $hour"
-          if [ "$hour" -ge 13 ] && [ "$hour" -le 17 ]; then
+          minute=$(TZ=Europe/Brussels date +%-M)
+          echo "Brussels time: $hour:$minute"
+          if [ "$hour" -ge 13 ] && { [ "$hour" -le 17 ] || { [ "$hour" -eq 18 ] && [ "$minute" -lt 30 ]; }; }; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -52,7 +54,7 @@ jobs:
         if: steps.gate.outputs.run == 'true'
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
-        run: python -m pipeline spot
+        run: python -m pipeline spot --skip-if-up-to-date
 
       - name: Fetch ECB exchange rates
         if: steps.gate.outputs.run == 'true'

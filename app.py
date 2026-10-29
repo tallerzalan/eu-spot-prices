@@ -220,7 +220,8 @@ else:
     value = day_df[day_df["slot"] == hour].set_index("zone")["price_eur_mwh"]
     map_title = f"Price at {hour} - {day:%a %d %b %Y}"
 
-tab_map, tab_matrix, tab_imb, tab_reg = st.tabs(["Map", "Matrix by region", "Imbalance", "Regulation"])
+tab_map, tab_matrix, tab_imb, tab_reg, tab_ida = st.tabs(
+    ["Map", "Matrix by region", "Imbalance", "Regulation", "Intraday auctions"])
 
 # ---------------------------------------------------------------- map tab
 st.session_state.setdefault("zones_sel", ["DK_1"])
@@ -807,3 +808,151 @@ with tab_reg:
                                      "Checked": v.get("checked"), "Error": v.get("error", "")}
                                     for z, v in r_status.items()]).set_index("Zone")
                 st.dataframe(cov)
+
+
+# ---------------------------------------------------------------- intraday auctions tab
+IDA_NAMES = {"da": "Day-ahead", "ida1": "IDA1", "ida2": "IDA2", "ida3": "IDA3"}
+IDA_COLORS = {"da": "#868e96", "ida1": "#1c7ed6", "ida2": "#7048e8", "ida3": "#f08c00"}  # no red/green: those mean direction
+IDA_PAIRS = [("da", "ida1"), ("ida1", "ida2"), ("ida2", "ida3"), ("da", "ida2"), ("da", "ida3"), ("ida1", "ida3")]
+IDA_HELP = """
+**Intraday auctions (IDA)** are three pan-European auctions after the day-ahead market, one per delivery day:
+**IDA1** at 15:00 and **IDA2** at 22:00 the day before, **IDA3** at 10:00 on the delivery day (IDA3 only covers the
+second half of the day, from 12:00). Each re-prices the whole position with newer forecasts.
+
+**Spread = later auction minus earlier auction.** Positive (green, bull) = the later auction cleared higher,
+negative (red, bear) = lower. Pick any pair: day-ahead to IDA1, IDA1 to IDA2, IDA2 to IDA3 or the longer jumps.
+
+**Coverage:** ENTSO-E publishes the IDA prices for few zones only (today Spain). Other markets publish them at the
+exchanges (EPEX SPOT, Nord Pool, OMIE) but not via ENTSO-E; they can be added when a source is available.
+"""
+
+
+@st.cache_data(show_spinner=False)
+def load_ida(ida_mtime: float, spot_mtime: float, gran_key: str) -> pd.DataFrame:
+    ida = pd.read_csv(DATA / "ida_15min.csv", parse_dates=["time"])
+    spot = pd.read_csv(DATA / "prices_15min.csv", parse_dates=["time"])
+    for frame in (ida, spot):
+        frame["time"] = pd.to_datetime(frame["time"], utc=True)
+    df = ida.merge(spot.rename(columns={"price_eur_mwh": "da"}), on=["zone", "time"], how="left")
+    if gran_key == "Hourly":
+        df = (df.set_index("time").groupby("zone")[["da", "ida1", "ida2", "ida3"]].resample("h").mean()
+                .dropna(how="all").reset_index())
+    for a, b in IDA_PAIRS:
+        df[f"{a}_{b}"] = df[b] - df[a]
+    df["time"] = df["time"].dt.tz_convert(MARKET_TZ)
+    df["date"] = df["time"].dt.date
+    df["hour"] = df["time"].dt.hour
+    df["slot_i"] = df["time"].dt.hour * 4 + df["time"].dt.minute // 15
+    return df.sort_values(["zone", "time"])
+
+
+def pair_label(a: str, b: str) -> str:
+    return f"{IDA_NAMES[a]} to {IDA_NAMES[b]}"
+
+
+with tab_ida:
+    ida_path = DATA / "ida_15min.csv"
+    if not ida_path.exists():
+        st.info("No intraday auction data yet. Run the 'Update intraday auctions' workflow once to create it.")
+    else:
+        ida = load_ida(ida_path.stat().st_mtime, (DATA / "prices_15min.csv").stat().st_mtime, gran)
+        iavail = [z for z in ZONE_CODES if z in set(ida["zone"])]
+        c1, c2, c3 = st.columns([2, 2, 1])
+        with c1:
+            izone = st.selectbox("Zone", iavail, format_func=label, key="ida_zone")
+        with c2:
+            ipair = st.selectbox("Spread", IDA_PAIRS, format_func=lambda p: pair_label(*p), key="ida_pair")
+        with c3:
+            idays = st.select_slider("Past days", [7, 14, 21, 30], value=30, key="ida_days")
+        with st.expander("How to read this"):
+            st.markdown(IDA_HELP)
+
+        ilast = ida["date"].max()
+        iwin = ida[ida["date"] > ilast - pd.Timedelta(days=idays)]
+        idz = iwin[iwin["zone"] == izone]
+        scol = f"{ipair[0]}_{ipair[1]}"
+        st.caption(f"{label(izone)} · {idz['date'].min():%d %b} - {ilast:%d %b %Y} (market time) · "
+                   f"zones with intraday auction prices: {', '.join(iavail)}")
+
+        # ---- hero: spread heatmap, period x day, newest first
+        st.subheader(f"{izone}: spread {pair_label(*ipair)} by {PER} and day")
+        if idz[scol].notna().sum() == 0:
+            st.info(f"No overlapping {IDA_NAMES[ipair[0]]} and {IDA_NAMES[ipair[1]]} prices for {izone} in this period.")
+        else:
+            hp = idz.pivot_table(index="slot_i" if QH else "hour", columns="date", values=scol,
+                                 aggfunc="mean").reindex(range(NP))
+            newest_first = sorted(hp.columns, reverse=True)
+            hp = hp[newest_first]
+            lo, hi = np.nanpercentile(idz[scol].dropna(), [2, 98])
+            m = float(max(abs(lo), abs(hi))) or 1.0
+            hm = go.Figure(go.Heatmap(
+                z=hp.to_numpy(), x=[d.strftime("%a %d %b") for d in newest_first],
+                y=[hour_label(h) for h in range(NP)], xgap=1, ygap=1, texttemplate="%{z:.0f}",
+                textfont=dict(size=8 if QH else 9), colorscale="RdYlGn", zmin=-m, zmax=m, zmid=0,
+                colorbar=dict(title="EUR/MWh", thickness=14),
+                hovertemplate="%{x}, %{y}: %{z:.2f} EUR/MWh<extra></extra>",
+            ))
+            hm.update_yaxes(autorange="reversed", type="category")
+            hm.update_xaxes(type="category", side="top", tickangle=-90)
+            hm.update_layout(height=190 + (20 if QH else 25) * NP, margin=dict(l=0, r=0, t=10, b=0))
+            st.plotly_chart(hm, key="ida_hm")
+
+        # ---- prices and spreads over time / by period of the day
+        left, right = st.columns(2, gap="large")
+        with left:
+            st.markdown("**Prices over time**")
+            lines = go.Figure()
+            for key in ("da", "ida1", "ida2", "ida3"):
+                if idz[key].notna().any():
+                    lines.add_trace(go.Scatter(x=idz["time"], y=idz[key], name=IDA_NAMES[key], mode="lines",
+                                               line=dict(color=IDA_COLORS[key], width=1.3)))
+            lines.update_layout(height=400, margin=dict(l=0, r=0, t=10, b=0), yaxis_title="EUR/MWh",
+                                hovermode="x unified", legend=dict(orientation="h", y=1.1))
+            st.plotly_chart(lines, key="ida_lines")
+        with right:
+            st.markdown(f"**Average by {PER} of the day** (prices) and spread {pair_label(*ipair)} (bars)")
+            g = idz.groupby("slot_i" if QH else "hour")[["da", "ida1", "ida2", "ida3", scol]].mean().reindex(range(NP))
+            fh = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.62, 0.38], vertical_spacing=0.05)
+            xs = [hour_label(h) for h in g.index]
+            for key in ("da", "ida1", "ida2", "ida3"):
+                if g[key].notna().any():
+                    fh.add_trace(go.Scatter(x=xs, y=g[key], name=IDA_NAMES[key], mode="lines",
+                                            line=dict(color=IDA_COLORS[key], width=1.5)), row=1, col=1)
+            fh.add_trace(go.Bar(x=xs, y=g[scol], showlegend=False,
+                                marker_color=np.where(g[scol].fillna(0) >= 0, "#2f9e44", "#e03131")), row=2, col=1)
+            fh.update_xaxes(type="category", tickangle=-60)
+            fh.update_yaxes(title_text="EUR/MWh", row=1, col=1)
+            fh.update_yaxes(title_text="Spread", row=2, col=1)
+            fh.update_layout(height=400, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified",
+                             legend=dict(orientation="h", y=1.1))
+            st.plotly_chart(fh, key="ida_h")
+
+        # ---- products: prices and all spreads
+        iz = idz.assign(zone=izone)
+        rows = {IDA_NAMES[k]: product_means(iz, k).loc[izone] for k in ("da", "ida1", "ida2", "ida3")
+                if idz[k].notna().any()}
+        for a, b in IDA_PAIRS:
+            if idz[f"{a}_{b}"].notna().any():
+                rows[f"Spread {pair_label(a, b)}"] = product_means(iz, f"{a}_{b}").loc[izone]
+        st.markdown(f"**{izone} by product** (average EUR/MWh; spreads use the hours both auctions cover)")
+        st.dataframe(pd.DataFrame(rows).T,
+                     column_config={c: st.column_config.NumberColumn(format="%.1f") for c in PRODUCTS})
+        st.caption(PRODUCT_HELP)
+
+        # ---- all zones
+        st.subheader("All zones")
+        zrows = []
+        for z, gz in iwin.groupby("zone"):
+            row = {"Zone": z, "Name": ZONE_NAME[z]}
+            for a, b in IDA_PAIRS:
+                row[f"{pair_label(a, b)} (EUR/MWh)"] = gz[f"{a}_{b}"].mean()
+            row["Mean |DA to IDA1|"] = gz["da_ida1"].abs().mean()
+            zrows.append(row)
+        st.dataframe(pd.DataFrame(zrows).set_index("Zone"), column_config={
+            c: st.column_config.NumberColumn(format="%.2f") for c in
+            [f"{pair_label(a, b)} (EUR/MWh)" for a, b in IDA_PAIRS] + ["Mean |DA to IDA1|"]})
+        missing = [z for z in ZONE_CODES if z not in iavail]
+        st.caption(f"No intraday auction prices on ENTSO-E for: {', '.join(missing)}.")
+        st.download_button("Download intraday auction data for this zone (CSV)",
+                           idz.drop(columns=["date", "hour", "slot_i"]).to_csv(index=False).encode(),
+                           file_name=f"ida_{izone}.csv", mime="text/csv")

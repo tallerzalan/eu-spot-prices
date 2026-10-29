@@ -2,7 +2,9 @@ name: Update imbalance
 
 on:
   schedule:
-    - cron: "12 * * * *" # hourly, imbalance prices and volumes are published around the clock
+    # Hourly effect: GitHub drops or delays many scheduled runs, so two attempts per hour. Runs that find nothing
+    # new commit nothing.
+    - cron: "7,37 * * * *"
   workflow_dispatch:
 
 permissions:

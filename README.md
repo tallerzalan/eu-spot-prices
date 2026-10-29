@@ -21,6 +21,10 @@ fed by the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) thro
   downregulation, MW) and the *available aggregated bids* for aFRR and mFRR (MW). Per zone: period x day heatmap,
   up/down charts over time and by time of day, products table, bids, and a comparison of all zones.
 
+- **Intraday auctions tab** - IDA1 (15:00 D-1), IDA2 (22:00 D-1) and IDA3 (10:00 D) prices next to day-ahead, and
+  the spreads between any two of them (later minus earlier; green = later auction higher). ENTSO-E only publishes
+  these prices for Spain; more zones can be added when a source exists (`pipeline/ida.py`).
+
 **Granularity** - the toggle at the top of the sidebar switches the whole dashboard between hourly means and
 15-minute values (map, tables, matrix and imbalance tab). 15-minute data is kept for 30 days in
 `data/prices_15min.csv` and `data/imbalance_15min.csv`; the first workflow runs after this feature backfill it.
@@ -32,6 +36,7 @@ GitHub Actions (three workflows)            pipeline/  (python -m pipeline <data
   Update spot prices  13:30-17:30 hourly ->   spot        -> data/prices_15min.csv, prices.csv
   Update imbalance    every hour         ->   imbalance   -> data/imbalance_15min.csv, imbalance.csv, ..._currency.json
   Update regulation   every hour         ->   regulation  -> data/regulation_15min.csv, regulation_status.json
+  Update intraday auctions hourly        ->   ida         -> data/ida_15min.csv
   (spot also)                            ->   fx          -> data/fx.csv (ECB reference rates)
                                                  |
                               Streamlit app (app.py) reads the CSV files

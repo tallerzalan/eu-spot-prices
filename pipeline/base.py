@@ -70,13 +70,14 @@ class Dataset:
     quarter_history_days = 30       # first fetch / backfill depth of the 15-minute file
     overlap_days = 3                # re-fetch this many days before the newest stored value
     window_end_days = 1             # fetch up to this many days after today (day-ahead needs 2)
+    default_zones = None            # None = all dashboard zones
     workers = 6                     # ENTSO-E allows 400 requests per minute per token
     time_budget_s = 12 * 60         # stop starting new zones after this; what arrived is saved
 
     def __init__(self, api_key, data_dir=None, zones=None):
         self.api_key = api_key
         self.data_dir = Path(data_dir) if data_dir else ROOT / "data"
-        self.zones = list(zones or ZONE_CODES)
+        self.zones = list(zones or self.default_zones or ZONE_CODES)
         self.today = pd.Timestamp.now(tz=MARKET_TZ).normalize()
         self.end = self.today + pd.Timedelta(days=self.window_end_days)
         self.zone_status = {}       # zone -> ok | no_data | error | skipped
@@ -86,6 +87,10 @@ class Dataset:
     def fetch_zone(self, zone, start, end):
         """-> DataFrame at 15 minutes (UTC index, `columns`) or None when nothing is published."""
         raise NotImplementedError
+
+    def is_up_to_date(self) -> bool:
+        """True when a run would find nothing new (lets scheduled runs exit early). Default: never."""
+        return False
 
     def prepare(self):
         """Hook before the run (load side files)."""
