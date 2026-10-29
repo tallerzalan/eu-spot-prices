@@ -1,15 +1,15 @@
 {
- "checked": "2026-10-28T11:19Z",
+ "checked": "2026-10-29T07:31Z",
  "chosen": {},
  "results": {
-  "control A84 prices FR": "REJECTED: exceptions must derive from BaseException",
-  "A83 businessType A96 FR": "REJECTED: exceptions must derive from BaseException",
-  "A83 A16+businessType A96 FR": "REJECTED: exceptions must derive from BaseException",
-  "A83 A16 A96 FR": "REJECTED: exceptions must derive from BaseException",
-  "A83 none A96 FR": "REJECTED: exceptions must derive from BaseException",
-  "A82 businessType A96 FR": "REJECTED: exceptions must derive from BaseException",
-  "A82 A16+businessType A96 FR": "REJECTED: exceptions must derive from BaseException",
-  "A82 A16 A96 FR": "REJECTED: exceptions must derive from BaseException",
-  "A82 none A96 FR": "REJECTED: exceptions must derive from BaseException"
+  "control A84 prices FR": "OK (115826 bytes)",
+  "A83 businessType A96 FR": "REJECTED: The combination of [DOCUMENT_TYPE=A83, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "A83 A16+businessType A96 FR": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A16, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "A83 A16 A96 FR": "REJECTED: The combination of [DOCUMENT_TYPE=A83, PROCESS_TYPE=A16] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "A83 none A96 FR": "REJECTED: The combination of [DOCUMENT_TYPE=A83] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "A82 businessType A96 FR": "REJECTED: The combination of [DOCUMENT_TYPE=A82, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "A82 A16+businessType A96 FR": "REJECTED: The combination of [DOCUMENT_TYPE=A82, PROCESS_TYPE=A16, BUSINESS_TYPE=A96] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "A82 A16 A96 FR": "REJECTED: The combination of [DOCUMENT_TYPE=A82, PROCESS_TYPE=A16] is not valid, or the requested data is not allowed to be fetched via this service.",
+  "A82 none A96 FR": "REJECTED: The combination of [DOCUMENT_TYPE=A82] is not valid, or the requested data is not allowed to be fetched via this service."
  }
 }
