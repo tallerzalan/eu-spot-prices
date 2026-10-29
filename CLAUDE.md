@@ -5,15 +5,15 @@ Streamlit dashboard (`app.py`) over ENTSO-E data: day-ahead spot prices, imbalan
 the app (hosted on Streamlit Community Cloud) just reads the CSVs. Repo: github.com/tallerzalan/eu-spot-prices.
 
 ## Layout
-- `app.py` - the whole dashboard (tabs: Map, Matrix by region, Imbalance, Regulation, Intraday auctions). Sidebar: granularity toggle
+- `app.py` - the whole dashboard (tabs: Map, Matrix by region, Imbalance, Regulation, Intraday auctions, Gas). Sidebar: granularity toggle
   (Hourly / 15-minute) and delivery day. Products (Base, Peak, ...) are defined once in `PRODUCTS`.
 - `zones.py` - single list of zones, display names and market regions. Used by app and pipeline.
 - `pipeline/` - the fetchers. `base.py` has the shared `Dataset` class (incremental fetch, parallel zones, time
-  budget, hourly derivation, merge/retention, CSV writing); `spot.py`, `imbalance.py`, `regulation.py`, `ida.py`, `fx.py`
-  implement `fetch_zone()` only. Run: `python -m pipeline <spot|imbalance|regulation|ida|fx> [--data-dir D] [--zones FR,NL]`.
+  budget, hourly derivation, merge/retention, CSV writing); `spot.py`, `imbalance.py`, `regulation.py`, `ida.py`, `gas.py`, `fx.py`
+  implement `fetch_zone()` only. Run: `python -m pipeline <spot|imbalance|regulation|ida|gas|fx> [--data-dir D] [--zones FR,NL]`.
 - `data/` - CSVs written by the workflows (do not edit by hand). `zones.geojson` is built by `scripts/build_geo.py`.
 - `.github/workflows/` - `update-spot` (attempts every 15 min, gated to 13:00-18:30 Brussels, skips when tomorrow is
-  complete), `update-imbalance`, `update-regulation`, `update-ida` (two attempts per hour). Each ends with
+  complete), `update-imbalance`, `update-regulation`, `update-ida`, `update-gas` (two attempts per hour). Each ends with
   `scripts/commit_data.sh` (rebase + retry on rejected push; several workflows push to main).
 - `tests/` - offline tests (`pytest`), no API key needed.
 
@@ -33,6 +33,11 @@ the app (hosted on Streamlit Community Cloud) just reads the CSVs. Repo: github.
   new. Check `https://api.github.com/repos/tallerzalan/eu-spot-prices/actions/runs` (public, no auth) for what ran.
 - For reliable timing an external scheduler (e.g. cron-job.org) would have to call the `workflow_dispatch` API with a
   fine-grained token; not set up.
+
+## Gas data
+- TTF (`TTF=F`, EUR/MWh, hourly bars) and NBP (`UKG=F`, pence/therm, daily bars only) come from the Yahoo chart API,
+  no key. NBP is converted to EUR/MWh in the app with the ECB GBP rate. `NBP=F` on Yahoo is a different, stale series.
+- Yahoo adds the live quote as an off-the-hour bar; `pipeline/gas.py` drops it so the hourly bars stay unique.
 
 ## ENTSO-E quirks (learned the hard way)
 - entsoe-py 0.8.1. 15-minute day-ahead prices since 1 Oct 2025. Responses may be a ZIP of XML documents.

@@ -25,6 +25,9 @@ fed by the [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/) thro
   the spreads between any two of them (later minus earlier; green = later auction higher). ENTSO-E only publishes
   these prices for Spain; more zones can be added when a source exists (`pipeline/ida.py`).
 
+- **Gas tab** - TTF (hourly) and NBP (daily settlement) front-month gas prices, NBP in EUR/MWh via the ECB rate,
+  their spread, and gas against a zone's day-ahead Base price. Source: Yahoo Finance (free, delayed).
+
 **Granularity** - the toggle at the top of the sidebar switches the whole dashboard between hourly means and
 15-minute values (map, tables, matrix and imbalance tab). 15-minute data is kept for 30 days in
 `data/prices_15min.csv` and `data/imbalance_15min.csv`; the first workflow runs after this feature backfill it.

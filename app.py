@@ -220,8 +220,8 @@ else:
     value = day_df[day_df["slot"] == hour].set_index("zone")["price_eur_mwh"]
     map_title = f"Price at {hour} - {day:%a %d %b %Y}"
 
-tab_map, tab_matrix, tab_imb, tab_reg, tab_ida = st.tabs(
-    ["Map", "Matrix by region", "Imbalance", "Regulation", "Intraday auctions"])
+tab_map, tab_matrix, tab_imb, tab_reg, tab_ida, tab_gas = st.tabs(
+    ["Map", "Matrix by region", "Imbalance", "Regulation", "Intraday auctions", "Gas"])
 
 # ---------------------------------------------------------------- map tab
 st.session_state.setdefault("zones_sel", ["DK_1"])
@@ -956,3 +956,143 @@ with tab_ida:
         st.download_button("Download intraday auction data for this zone (CSV)",
                            idz.drop(columns=["date", "hour", "slot_i"]).to_csv(index=False).encode(),
                            file_name=f"ida_{izone}.csv", mime="text/csv")
+
+
+# ---------------------------------------------------------------- gas tab
+THERM_MWH = 0.0293071  # 1 therm in MWh
+GAS_COLORS = {"TTF": "#1c7ed6", "NBP": "#f08c00"}  # no red/green: those mean direction
+GAS_HELP = """
+**TTF** (Dutch Title Transfer Facility, ICE Endex) and **NBP** (UK National Balancing Point, ICE UK) are the two main
+European gas benchmarks, shown here as the **front-month future**. TTF is quoted in EUR/MWh and updates hourly.
+NBP is quoted in pence per therm and the free source only has one **daily** settlement per day, so its chart is daily.
+For comparison NBP is converted to EUR/MWh: pence/therm / 100 / 0.0293071 (MWh per therm), divided by the ECB GBP rate
+of that day. Source: Yahoo Finance (delayed, unofficial); times in market time.
+
+**Gas vs power:** gas sets the marginal cost of gas-fired power, so the day-ahead price of a zone usually follows TTF.
+"""
+
+
+@st.cache_data(show_spinner=False)
+def load_gas(gas_mtime: float, fx_mtime: float) -> pd.DataFrame:
+    df = pd.read_csv(DATA / "gas.csv", parse_dates=["time"])
+    df["time"] = pd.to_datetime(df["time"], utc=True).dt.tz_convert(MARKET_TZ)
+    df["date"] = df["time"].dt.normalize().dt.tz_localize(None)
+    df["eur"] = df["close"]
+    nbp = df["market"] == "NBP"
+    gbp = pd.Series(np.nan, index=df.index)
+    fx_path = DATA / "fx.csv"
+    if fx_path.exists():
+        fx = pd.read_csv(fx_path, parse_dates=["date"])
+        rates = fx[fx["currency"] == "GBP"].set_index("date")["per_eur"].sort_index()
+        full = rates.reindex(pd.date_range(min(rates.index.min(), df["date"].min()),
+                                           max(rates.index.max(), df["date"].max()))).ffill().bfill()
+        gbp = df["date"].map(full)
+    df.loc[nbp, "eur"] = df.loc[nbp, "close"] / 100 / THERM_MWH / gbp[nbp]
+    return df.sort_values(["market", "time"])
+
+
+with tab_gas:
+    gas_path = DATA / "gas.csv"
+    if not gas_path.exists():
+        st.info("No gas data yet. Run the 'Update gas' workflow once to create it.")
+    else:
+        gas = load_gas(gas_path.stat().st_mtime, (DATA / "fx.csv").stat().st_mtime if (DATA / "fx.csv").exists() else 0)
+        ttf = gas[gas["market"] == "TTF"]
+        nbp = gas[gas["market"] == "NBP"]
+        ttf_daily = ttf.groupby("date")["eur"].last()
+        nbp_daily = nbp.groupby("date")["eur"].last()
+
+        def tile(col, name, series, unit):
+            if series.empty:
+                col.metric(name, "n/a")
+                return
+            last = series.iloc[-1]
+            prev = series.iloc[-2] if len(series) > 1 else np.nan
+            col.metric(name, f"{last:,.2f} {unit}", None if pd.isna(prev) else f"{last - prev:+.2f} vs previous",
+                       delta_color="normal")  # green up = bull, red down = bear
+
+        t1, t2, t3, t4 = st.columns(4)
+        tile(t1, "TTF front-month", ttf["eur"], "EUR/MWh")
+        tile(t2, "NBP front-month (EUR)", nbp_daily, "EUR/MWh")
+        if not nbp.empty:
+            t3.metric("NBP front-month", f"{nbp['close'].iloc[-1]:,.1f} p/therm")
+        common = pd.concat([ttf_daily.rename("TTF"), nbp_daily.rename("NBP")], axis=1).dropna()
+        if not common.empty:
+            t4.metric("NBP minus TTF (latest settlement)", f"{common['NBP'].iloc[-1] - common['TTF'].iloc[-1]:+.2f} EUR/MWh")
+        st.caption(f"TTF latest bar {ttf['time'].max():%a %d %b %H:%M} · NBP latest settlement "
+                   f"{nbp['time'].max():%a %d %b} (market time). Hourly updates; NBP only changes once a day.")
+        with st.expander("How to read this"):
+            st.markdown(GAS_HELP)
+
+        gdays = st.radio("Period", [7, 30, 90], index=1, horizontal=True, format_func=lambda d: f"{d} days", key="gas_days")
+        cutoff = gas["time"].max() - pd.Timedelta(days=gdays)
+
+        st.subheader("TTF, hourly")
+        tw = ttf[ttf["time"] >= cutoff]
+        candles = st.toggle("Candles", value=False, key="gas_candles")
+        fig = go.Figure()
+        if candles:
+            fig.add_trace(go.Candlestick(x=tw["time"], open=tw["open"], high=tw["high"], low=tw["low"],
+                                         close=tw["close"], name="TTF", increasing_line_color="#2f9e44",
+                                         decreasing_line_color="#e03131"))
+        else:
+            fig.add_trace(go.Scatter(x=tw["time"], y=tw["close"], name="TTF", mode="lines",
+                                     line=dict(color=GAS_COLORS["TTF"], width=1.6)))
+        fig.update_layout(height=420, margin=dict(l=0, r=0, t=10, b=0), yaxis_title="EUR/MWh",
+                          xaxis_rangeslider_visible=False, hovermode="x unified")
+        st.plotly_chart(fig, key="gas_ttf")
+
+        st.subheader("NBP, daily settlement")
+        nw = nbp[nbp["time"] >= cutoff]
+        fn = make_subplots(specs=[[{"secondary_y": True}]])
+        fn.add_trace(go.Scatter(x=nw["time"], y=nw["eur"], name="NBP (EUR/MWh)", mode="lines+markers",
+                                line=dict(color=GAS_COLORS["NBP"], width=1.6)), secondary_y=False)
+        fn.add_trace(go.Scatter(x=nw["time"], y=nw["close"], name="NBP (pence/therm)", mode="lines",
+                                line=dict(color=GAS_COLORS["NBP"], width=0.8, dash="dot"), opacity=0.6),
+                     secondary_y=True)
+        fn.update_yaxes(title_text="EUR/MWh", secondary_y=False)
+        fn.update_yaxes(title_text="pence/therm", secondary_y=True)
+        fn.update_layout(height=380, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified",
+                         legend=dict(orientation="h", y=1.1))
+        st.plotly_chart(fn, key="gas_nbp")
+
+        st.subheader("TTF vs NBP, daily, EUR/MWh")
+        cw = common[common.index >= cutoff.tz_localize(None).normalize()]
+        if cw.empty:
+            st.info("No overlapping TTF and NBP settlements in this period.")
+        else:
+            spread = cw["NBP"] - cw["TTF"]
+            fc = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.65, 0.35], vertical_spacing=0.05)
+            for name in ("TTF", "NBP"):
+                fc.add_trace(go.Scatter(x=cw.index, y=cw[name], name=name, mode="lines",
+                                        line=dict(color=GAS_COLORS[name], width=1.6)), row=1, col=1)
+            fc.add_trace(go.Bar(x=cw.index, y=spread, showlegend=False,
+                                marker_color=np.where(spread >= 0, "#2f9e44", "#e03131")), row=2, col=1)
+            fc.update_yaxes(title_text="EUR/MWh", row=1, col=1)
+            fc.update_yaxes(title_text="NBP - TTF", row=2, col=1)
+            fc.update_layout(height=460, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified",
+                             legend=dict(orientation="h", y=1.08))
+            st.plotly_chart(fc, key="gas_cmp")
+            st.caption("Spread bars: green = NBP above TTF, red = NBP below TTF.")
+
+        st.subheader("Gas vs power")
+        zones_gas = st.selectbox("Zone", ZONE_CODES, index=ZONE_CODES.index("NL"), format_func=label, key="gas_zone")
+        pz = prices[prices["zone"] == zones_gas]
+        base = pz.groupby(pd.to_datetime(pz["date"]))["price_eur_mwh"].mean()
+        base = base[base.index >= cutoff.tz_localize(None).normalize()]
+        ttf_cmp = ttf_daily[ttf_daily.index >= cutoff.tz_localize(None).normalize()]
+        if base.empty or ttf_cmp.empty:
+            st.info("No overlapping spot and TTF data in this period.")
+        else:
+            fp = make_subplots(specs=[[{"secondary_y": True}]])
+            fp.add_trace(go.Scatter(x=base.index, y=base, name=f"{zones_gas} spot Base", mode="lines",
+                                    line=dict(color="#868e96", width=1.6)), secondary_y=False)
+            fp.add_trace(go.Scatter(x=ttf_cmp.index, y=ttf_cmp, name="TTF (daily close)", mode="lines",
+                                    line=dict(color=GAS_COLORS["TTF"], width=1.6)), secondary_y=True)
+            fp.update_yaxes(title_text="Spot Base, EUR/MWh", secondary_y=False)
+            fp.update_yaxes(title_text="TTF, EUR/MWh", secondary_y=True)
+            fp.update_layout(height=380, margin=dict(l=0, r=0, t=10, b=0), hovermode="x unified",
+                             legend=dict(orientation="h", y=1.1))
+            st.plotly_chart(fp, key="gas_power")
+        st.download_button("Download gas prices (CSV)", gas.drop(columns=["date"]).to_csv(index=False).encode(),
+                           file_name="gas_prices.csv", mime="text/csv")
